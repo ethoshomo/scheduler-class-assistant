@@ -1,15 +1,21 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable } from "./data-table";
 import { Button } from "../ui/button";
 import * as XLSX from "xlsx";
+import { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import { Upload, Trash2 } from "lucide-react";
 
-// Define interfaces for our data structures
 interface DataRow {
 	[key: string]: string | number | boolean | Date | null;
 }
 
-// Utility function to convert data to CSV
 const convertToCSV = (data: DataRow[]): string => {
+	if (!data.length) return "";
+
+	// Add BOM for UTF-8
+	const BOM = "\uFEFF";
+
 	const headers = Object.keys(data[0]);
 	const csvRows = [
 		headers.join(","), // Header row
@@ -36,10 +42,9 @@ const convertToCSV = (data: DataRow[]): string => {
 				.join(",")
 		),
 	];
-	return csvRows.join("\n");
+	return BOM + csvRows.join("\n");
 };
 
-// Utility function to download file
 const downloadFile = (
 	content: string | Blob,
 	fileName: string,
@@ -48,7 +53,7 @@ const downloadFile = (
 	const blob =
 		content instanceof Blob
 			? content
-			: new Blob([content], { type: fileType });
+			: new Blob([content], { type: `${fileType};charset=utf-8` });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
@@ -59,69 +64,204 @@ const downloadFile = (
 	URL.revokeObjectURL(url);
 };
 
-type Payment = {
-	id: string;
-	amount: number;
-	status: "pending" | "processing" | "success" | "failed";
-	email: string;
+// Helper function to decode UTF-8 strings correctly
+const decodeUTF8 = (text: string): string => {
+	try {
+		return decodeURIComponent(
+			text
+				.split("")
+				.map(
+					(char) =>
+						"%" + char.charCodeAt(0).toString(16).padStart(2, "0")
+				)
+				.join("")
+		);
+	} catch {
+		return text; // Return original text if decoding fails
+	}
 };
 
-export const payments: Payment[] = [
-	{
-		id: "728ed52f",
-		amount: 100,
-		status: "pending",
-		email: "m@example.com",
-	},
-	{
-		id: "489e1d42",
-		amount: 125,
-		status: "processing",
-		email: "example@gmail.com",
-	},
-];
-
-export const columns: ColumnDef<Payment>[] = [
-	{
-		accessorKey: "status",
-		header: "Status",
-	},
-	{
-		accessorKey: "email",
-		header: "Email",
-	},
-	{
-		accessorKey: "amount",
-		header: "Amount",
-	},
-];
-
-const data = payments;
 const fileName = "example";
 
 export default function DataTableExample() {
-	const handleExportXLSX = (): void => {
-		// Create worksheet from data
-		const ws = XLSX.utils.json_to_sheet(data);
+	const [data, setData] = useState<DataRow[]>([]);
+	const [columns, setColumns] = useState<any[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
 
-		// Create workbook and add worksheet
+	const handleExportXLSX = useCallback((): void => {
+		if (!data.length) {
+			alert("No data to export!");
+			return;
+		}
+		const ws = XLSX.utils.json_to_sheet(data);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
-		// Generate XLSX file and trigger download
-		XLSX.writeFile(wb, `${fileName}.xlsx`);
-	};
+		XLSX.writeFile(wb, `${fileName}.xlsx`, {
+			bookType: "xlsx",
+			bookSST: false,
+			type: "file",
+		});
+	}, [data]);
 
-	const handleExportCSV = (): void => {
+	const handleExportCSV = useCallback((): void => {
+		if (!data.length) {
+			alert("No data to export!");
+			return;
+		}
 		const csv = convertToCSV(data);
 		downloadFile(csv, `${fileName}.csv`, "text/csv");
-	};
+	}, [data]);
+
+	const handleClearData = useCallback((): void => {
+		if (window.confirm("Are you sure you want to clear all data?")) {
+			setData([]);
+			setColumns([]);
+		}
+	}, []);
+
+	const columnHelper = createColumnHelper<DataRow>();
+
+	const onDrop = useCallback((acceptedFiles: File[]) => {
+		const file = acceptedFiles[0];
+		if (!file) return;
+
+		setIsLoading(true);
+		const reader = new FileReader();
+
+		reader.onload = (event) => {
+			try {
+				const arrayBuffer = event.target?.result as ArrayBuffer;
+				const workbook = XLSX.read(arrayBuffer, {
+					type: "array",
+					codepage: 65001, // UTF-8 encoding
+				});
+				const wsname = workbook.SheetNames[0];
+				const ws = workbook.Sheets[wsname];
+				const rawData = XLSX.utils.sheet_to_json(ws, {
+					raw: false, // Convert all data to strings
+					defval: "", // Use empty string for empty cells
+				}) as DataRow[];
+
+				// Process the data to fix encoding issues
+				const processedData = rawData.map((row) => {
+					const newRow: DataRow = {};
+					Object.entries(row).forEach(([key, value]) => {
+						// Decode both keys and values if they're strings
+						const decodedKey =
+							typeof key === "string" ? decodeUTF8(key) : key;
+						const decodedValue =
+							typeof value === "string"
+								? decodeUTF8(value)
+								: value;
+						newRow[decodedKey] = decodedValue;
+					});
+					return newRow;
+				});
+
+				// Generate columns from the first row of data
+				if (processedData.length > 0) {
+					const cols = Object.keys(processedData[0]).map((key) => {
+						return columnHelper.accessor(key, {
+							header: key,
+							cell: (info) => info.getValue(),
+						});
+					});
+					setColumns(cols);
+					setData(processedData);
+				}
+			} catch (error) {
+				console.error("Error processing file:", error);
+				alert(
+					"Error processing file. Please make sure it is a valid Excel or CSV file."
+				);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		reader.onerror = (error) => {
+			console.error("File reading error:", error);
+			alert("Error reading file. Please try again.");
+			setIsLoading(false);
+		};
+
+		reader.readAsArrayBuffer(file);
+	}, []);
+
+	const { getRootProps, getInputProps, isDragActive } = useDropzone({
+		onDrop,
+		accept: {
+			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+				[".xlsx"],
+			"text/csv": [".csv"],
+		},
+		multiple: false,
+	});
 
 	return (
 		<div className="container mx-auto py-10">
-			<Button onClick={handleExportXLSX}>Download xlsx</Button>
-			<Button onClick={handleExportCSV}>Download csv</Button>
-			<DataTable columns={columns} data={data} />
+			<div
+				{...getRootProps()}
+				className={`
+          relative p-8 mb-4 border-2 border-dashed rounded-lg 
+          transition-colors duration-200 ease-in-out
+          flex flex-col items-center justify-center
+          min-h-[200px]
+          ${
+				isDragActive
+					? "border-blue-500 bg-blue-50"
+					: "border-gray-300 hover:border-gray-400"
+			}
+          ${isLoading ? "opacity-50 cursor-wait" : "cursor-pointer"}
+        `}>
+				<input {...getInputProps()} />
+				<Upload className="w-10 h-10 mb-4 text-gray-400" />
+				{isLoading ? (
+					<p className="text-sm text-gray-500">Processing file...</p>
+				) : isDragActive ? (
+					<p className="text-sm text-blue-500 font-medium">
+						Drop the file here...
+					</p>
+				) : (
+					<div className="text-center">
+						<p className="text-sm text-gray-500 mb-1">
+							Drag and drop your Excel or CSV file here
+						</p>
+						<p className="text-xs text-gray-400">
+							or click to select a file
+						</p>
+					</div>
+				)}
+				<div className="mt-2 text-xs text-gray-400">
+					Supported formats: .xlsx, .csv
+				</div>
+			</div>
+
+			<div className="flex gap-4 mb-4">
+				<Button
+					onClick={handleExportXLSX}
+					disabled={!data.length || isLoading}
+					className="w-40">
+					Export XLSX
+				</Button>
+				<Button
+					onClick={handleExportCSV}
+					disabled={!data.length || isLoading}
+					className="w-40">
+					Export CSV
+				</Button>
+				<Button
+					onClick={handleClearData}
+					disabled={!data.length || isLoading}
+					variant="destructive"
+					className="w-40">
+					<Trash2 className="w-4 h-4 mr-2" />
+					Clear Data
+				</Button>
+			</div>
+
+			{data.length > 0 && <DataTable columns={columns} data={data} />}
 		</div>
 	);
 }

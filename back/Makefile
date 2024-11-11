@@ -1,0 +1,4 @@
+all:
+
+reqs:
+	pipreqs --force
