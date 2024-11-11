@@ -1,15 +1,28 @@
 import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable } from "./data-table";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "../ui/dialog";
 import * as XLSX from "xlsx";
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, Trash2 } from "lucide-react";
+import { Upload, Trash2, Plus } from "lucide-react";
 
 interface DataRow {
 	[key: string]: string | number | boolean | Date | null;
 }
 
+interface FormDataRow {
+	[key: string]: string;
+}
+
+// Previous helper functions remain the same
 const convertToCSV = (data: DataRow[]): string => {
 	if (!data.length) return "";
 
@@ -87,6 +100,32 @@ export default function DataTableExample() {
 	const [data, setData] = useState<DataRow[]>([]);
 	const [columns, setColumns] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
+	const [isAddRowDialogOpen, setIsAddRowDialogOpen] = useState(false);
+	const [newRowData, setNewRowData] = useState<FormDataRow>({});
+
+	// Initialize new row data when columns change
+	const resetNewRowData = useCallback(() => {
+		const initialData: FormDataRow = {};
+		columns.forEach((column) => {
+			initialData[column.accessorKey] = "";
+		});
+		setNewRowData(initialData);
+	}, [columns]);
+
+	// Handle input change for new row form
+	const handleInputChange = (columnKey: string, value: string) => {
+		setNewRowData((prev) => ({
+			...prev,
+			[columnKey]: value,
+		}));
+	};
+
+	// Handle form submission for new row
+	const handleAddRow = () => {
+		setData((prevData) => [...prevData, newRowData]);
+		resetNewRowData();
+		setIsAddRowDialogOpen(false);
+	};
 
 	const handleExportXLSX = useCallback((): void => {
 		if (!data.length) {
@@ -139,8 +178,8 @@ export default function DataTableExample() {
 				const wsname = workbook.SheetNames[0];
 				const ws = workbook.Sheets[wsname];
 				const rawData = XLSX.utils.sheet_to_json(ws, {
-					raw: false, // Convert all data to strings
-					defval: "", // Use empty string for empty cells
+					raw: false,
+					defval: "",
 				}) as DataRow[];
 
 				// Process the data to fix encoding issues
@@ -239,6 +278,54 @@ export default function DataTableExample() {
 			</div>
 
 			<div className="flex gap-4 mb-4">
+				{columns.length > 0 && (
+					<Dialog
+						open={isAddRowDialogOpen}
+						onOpenChange={setIsAddRowDialogOpen}>
+						<DialogTrigger asChild>
+							<Button
+								onClick={() => resetNewRowData()}
+								className="w-40">
+								<Plus className="w-4 h-4 mr-2" />
+								Add Row
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Add New Row</DialogTitle>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
+								{columns.map((column) => (
+									<div
+										key={column.accessorKey}
+										className="grid grid-cols-4 items-center gap-4">
+										<label
+											htmlFor={column.accessorKey}
+											className="text-right">
+											{column.header}
+										</label>
+										<Input
+											id={column.accessorKey}
+											value={
+												newRowData[
+													column.accessorKey
+												] || ""
+											}
+											onChange={(e) =>
+												handleInputChange(
+													column.accessorKey,
+													e.target.value
+												)
+											}
+											className="col-span-3"
+										/>
+									</div>
+								))}
+							</div>
+							<Button onClick={handleAddRow}>Add Row</Button>
+						</DialogContent>
+					</Dialog>
+				)}
 				<Button
 					onClick={handleExportXLSX}
 					disabled={!data.length || isLoading}
