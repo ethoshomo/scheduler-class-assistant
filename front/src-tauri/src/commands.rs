@@ -2,9 +2,10 @@ use std::path::Path;
 use std::process::Command;
 
 #[cfg(target_os = "windows")]
-const TARGET_TRIPLE: &str = "x86_64-pc-windows-msvc";
+const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/back.exe";
+
 #[cfg(target_os = "linux")]
-const TARGET_TRIPLE: &str = "x86_64-unknown-linux-gnu";
+const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/back";
 
 #[tauri::command]
 pub async fn process_excel_file(file_path: String) -> Result<String, String> {
@@ -13,23 +14,22 @@ pub async fn process_excel_file(file_path: String) -> Result<String, String> {
     if !path.exists() {
         return Err("File does not exist".into());
     }
-    if path.extension().and_then(|ext| ext.to_str()) != Some("xlsx") {
-        return Err("File must be an XLSX file".into());
+
+    // Check for valid extensions
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or("File has no extension")?;
+
+    if extension != "xlsx" && extension != "csv" {
+        return Err("File must be an XLSX or CSV file".into());
     }
 
-    // Path to the executable
-    #[cfg(target_os = "windows")]
-    let executable_name = "back.exe";
-    #[cfg(not(target_os = "windows"))]
-    let executable_name = "back";
-
-    let executable_path = concat!(env!("CARGO_MANIFEST_DIR"), "/binaries/");
-    let executable = format!("{}{}/{}", executable_path, TARGET_TRIPLE, executable_name);
-
-    println!("Trying to execute: {}", executable); // Debug print
+    // Construct the path to the executable
+    let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join(BINARY_PATH);
 
     // Execute the compiled program with the file path as argument
-    let output = Command::new(&executable)
+    let output = Command::new(executable)
         .arg(&file_path)
         .output()
         .map_err(|e| format!("Failed to execute program: {}", e))?;

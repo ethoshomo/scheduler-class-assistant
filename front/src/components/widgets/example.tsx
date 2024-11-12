@@ -79,23 +79,6 @@ const downloadFile = (
 	URL.revokeObjectURL(url);
 };
 
-// Helper function to decode UTF-8 strings correctly
-const decodeUTF8 = (text: string): string => {
-	try {
-		return decodeURIComponent(
-			text
-				.split("")
-				.map(
-					(char) =>
-						"%" + char.charCodeAt(0).toString(16).padStart(2, "0")
-				)
-				.join("")
-		);
-	} catch {
-		return text; // Return original text if decoding fails
-	}
-};
-
 const confirmDialog = async (msg: string): Promise<boolean> =>
 	window.confirm(msg);
 
@@ -175,6 +158,12 @@ export default function DataTableExample() {
 		setIsLoading(true);
 
 		try {
+			// Check file extension
+			const fileExtension = file.name.split(".").pop()?.toLowerCase();
+			if (fileExtension !== "xlsx" && fileExtension !== "csv") {
+				throw new Error("File must be an XLSX or CSV file");
+			}
+
 			// Ensure directory exists
 			await mkdir("", {
 				baseDir: BaseDirectory.AppConfig,
@@ -199,48 +188,57 @@ export default function DataTableExample() {
 			});
 			console.log("Python script output:", result);
 
-			// Continue with existing file reading for table display
+			// File reading logic for display...
 			const reader = new FileReader();
-			reader.onload = (event) => {
+			reader.onload = async (event) => {
 				try {
 					const arrayBuffer = event.target?.result as ArrayBuffer;
-					const workbook = XLSX.read(arrayBuffer, {
-						type: "array",
-						codepage: 65001,
-					});
-					const wsname = workbook.SheetNames[0];
-					const ws = workbook.Sheets[wsname];
-					const rawData = XLSX.utils.sheet_to_json(ws, {
-						raw: false,
-						defval: "",
-					}) as DataRow[];
+					let rawData: any[];
 
-					const processedData = rawData.map((row) => {
-						const newRow: DataRow = {};
-						Object.entries(row).forEach(([key, value]) => {
-							const decodedKey =
-								typeof key === "string" ? decodeUTF8(key) : key;
-							const decodedValue =
-								typeof value === "string"
-									? decodeUTF8(value)
-									: value;
-							newRow[decodedKey] = decodedValue;
-						});
-						return newRow;
-					});
-
-					if (processedData.length > 0) {
-						const columnHelper = createColumnHelper<DataRow>();
-						const cols = Object.keys(processedData[0]).map(
-							(key) => {
-								return columnHelper.accessor(key, {
-									header: key,
-									cell: (info) => info.getValue(),
-								});
-							}
+					if (fileExtension === "csv") {
+						const text = new TextDecoder("utf-8").decode(
+							arrayBuffer
 						);
+						const rows = text.split("\n");
+						const headers = rows[0]
+							.split(",")
+							.map((header) => header.trim());
+						rawData = rows
+							.slice(1)
+							.filter((row) => row.trim())
+							.map((row) => {
+								const values = row
+									.split(",")
+									.map((value) => value.trim());
+								const rowData: { [key: string]: string } = {};
+								headers.forEach((header, index) => {
+									rowData[header] = values[index] || "";
+								});
+								return rowData;
+							});
+					} else {
+						const workbook = XLSX.read(arrayBuffer, {
+							type: "array",
+							codepage: 65001,
+						});
+						const wsname = workbook.SheetNames[0];
+						const ws = workbook.Sheets[wsname];
+						rawData = XLSX.utils.sheet_to_json(ws, {
+							raw: false,
+							defval: "",
+						});
+					}
+
+					if (rawData.length > 0) {
+						const columnHelper = createColumnHelper<DataRow>();
+						const cols = Object.keys(rawData[0]).map((key) => {
+							return columnHelper.accessor(key, {
+								header: key,
+								cell: (info) => info.getValue(),
+							});
+						});
 						setColumns(cols);
-						setData(processedData);
+						setData(rawData);
 					}
 				} catch (error) {
 					console.error("Error processing file:", error);
