@@ -1,4 +1,4 @@
-import Stepper, { StepStatus } from "./components/ui/stepper";
+import Stepper, { StepStatus } from "./components/widgets/stepper";
 import DataTableExample from "./components/widgets/example";
 
 // Example usage with form content
