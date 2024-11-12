@@ -1,6 +1,6 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "front",
+	"productName": "Scheduler Class Assistant",
 	"version": "0.1.0",
 	"identifier": "scheduler-class-assistant",
 	"build": {

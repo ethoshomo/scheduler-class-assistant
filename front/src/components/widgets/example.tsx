@@ -93,6 +93,9 @@ const decodeUTF8 = (text: string): string => {
 	}
 };
 
+const confirmDialog = async (msg: string): Promise<boolean> =>
+	window.confirm(msg);
+
 const fileName = "example";
 
 export default function DataTableExample() {
@@ -151,8 +154,12 @@ export default function DataTableExample() {
 		downloadFile(csv, `${fileName}.csv`, "text/csv");
 	}, [data]);
 
-	const handleClearData = useCallback((): void => {
-		if (window.confirm("Are you sure you want to clear all data?")) {
+	const handleClearData = useCallback(async (): Promise<void> => {
+		const userConfirmed = await confirmDialog(
+			"Are you sure you want to clear all data?"
+		);
+		console.log(userConfirmed);
+		if (userConfirmed) {
 			setData([]);
 			setColumns([]);
 		}
