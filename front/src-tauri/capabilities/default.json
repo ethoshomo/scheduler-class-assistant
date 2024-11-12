@@ -8,9 +8,10 @@
   "permissions": [
     "core:default",
     "shell:allow-open",
-    "dialog:default",
     "fs:default",
-    "dialog:default",
-    "fs:default"
+    {
+      "identifier": "fs:allow-app-write-recursive",
+      "allow": [{ "path": "$APPDATA/*" }]
+    }
   ]
 }

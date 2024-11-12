@@ -13,6 +13,9 @@ import * as XLSX from "xlsx";
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, Trash2, Plus } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
+import { appConfigDir, join } from "@tauri-apps/api/path";
 
 interface DataRow {
 	[key: string]: string | number | boolean | Date | null;
@@ -165,73 +168,95 @@ export default function DataTableExample() {
 		}
 	}, []);
 
-	const columnHelper = createColumnHelper<DataRow>();
-
-	const onDrop = useCallback((acceptedFiles: File[]) => {
+	const onDrop = useCallback(async (acceptedFiles: File[]) => {
 		const file = acceptedFiles[0];
 		if (!file) return;
 
 		setIsLoading(true);
-		const reader = new FileReader();
 
-		reader.onload = (event) => {
-			try {
-				const arrayBuffer = event.target?.result as ArrayBuffer;
-				const workbook = XLSX.read(arrayBuffer, {
-					type: "array",
-					codepage: 65001, // UTF-8 encoding
-				});
-				const wsname = workbook.SheetNames[0];
-				const ws = workbook.Sheets[wsname];
-				const rawData = XLSX.utils.sheet_to_json(ws, {
-					raw: false,
-					defval: "",
-				}) as DataRow[];
+		try {
+			// Ensure directory exists
+			await mkdir("", {
+				baseDir: BaseDirectory.AppConfig,
+				recursive: true,
+			});
 
-				// Process the data to fix encoding issues
-				const processedData = rawData.map((row) => {
-					const newRow: DataRow = {};
-					Object.entries(row).forEach(([key, value]) => {
-						// Decode both keys and values if they're strings
-						const decodedKey =
-							typeof key === "string" ? decodeUTF8(key) : key;
-						const decodedValue =
-							typeof value === "string"
-								? decodeUTF8(value)
-								: value;
-						newRow[decodedKey] = decodedValue;
+			// Convert File to Uint8Array
+			const fileContent = new Uint8Array(await file.arrayBuffer());
+
+			// Write file using correct Tauri v2 API
+			await writeFile(file.name, fileContent, {
+				baseDir: BaseDirectory.AppConfig,
+			});
+
+			// Get the absolute file path using Tauri path APIs
+			const configDir = await appConfigDir();
+			const filePath = await join(configDir, file.name);
+
+			// Process with Python backend and log result
+			const result = await invoke("process_excel_file", {
+				filePath: filePath,
+			});
+			console.log("Python script output:", result);
+
+			// Continue with existing file reading for table display
+			const reader = new FileReader();
+			reader.onload = (event) => {
+				try {
+					const arrayBuffer = event.target?.result as ArrayBuffer;
+					const workbook = XLSX.read(arrayBuffer, {
+						type: "array",
+						codepage: 65001,
 					});
-					return newRow;
-				});
+					const wsname = workbook.SheetNames[0];
+					const ws = workbook.Sheets[wsname];
+					const rawData = XLSX.utils.sheet_to_json(ws, {
+						raw: false,
+						defval: "",
+					}) as DataRow[];
 
-				// Generate columns from the first row of data
-				if (processedData.length > 0) {
-					const cols = Object.keys(processedData[0]).map((key) => {
-						return columnHelper.accessor(key, {
-							header: key,
-							cell: (info) => info.getValue(),
+					const processedData = rawData.map((row) => {
+						const newRow: DataRow = {};
+						Object.entries(row).forEach(([key, value]) => {
+							const decodedKey =
+								typeof key === "string" ? decodeUTF8(key) : key;
+							const decodedValue =
+								typeof value === "string"
+									? decodeUTF8(value)
+									: value;
+							newRow[decodedKey] = decodedValue;
 						});
+						return newRow;
 					});
-					setColumns(cols);
-					setData(processedData);
+
+					if (processedData.length > 0) {
+						const columnHelper = createColumnHelper<DataRow>();
+						const cols = Object.keys(processedData[0]).map(
+							(key) => {
+								return columnHelper.accessor(key, {
+									header: key,
+									cell: (info) => info.getValue(),
+								});
+							}
+						);
+						setColumns(cols);
+						setData(processedData);
+					}
+				} catch (error) {
+					console.error("Error processing file:", error);
 				}
-			} catch (error) {
-				console.error("Error processing file:", error);
-				alert(
-					"Error processing file. Please make sure it is a valid Excel or CSV file."
-				);
-			} finally {
-				setIsLoading(false);
-			}
-		};
+			};
 
-		reader.onerror = (error) => {
-			console.error("File reading error:", error);
-			alert("Error reading file. Please try again.");
+			reader.onerror = (error) => {
+				console.error("File reading error:", error);
+			};
+
+			reader.readAsArrayBuffer(file);
+		} catch (e) {
+			console.error("Error processing file with backend:", e);
+		} finally {
 			setIsLoading(false);
-		};
-
-		reader.readAsArrayBuffer(file);
+		}
 	}, []);
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({

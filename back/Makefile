@@ -5,4 +5,4 @@ windows: test.py build_executables.py
 	python build_executables.py
 
 reqs:
-	pipreqs --force
+	pip freeze > requirements.txt
