@@ -26,19 +26,14 @@ interface FormDataRow {
 
 const convertToCSV = (data: DataRow[]): string => {
 	if (!data.length) return "";
-
-	// Add BOM for UTF-8
 	const BOM = "\uFEFF";
-
 	const headers = Object.keys(data[0]);
 	const csvRows = [
-		headers.join(","), // Header row
+		headers.join(","),
 		...data.map((row) =>
 			headers
 				.map((header) => {
 					let cell = row[header];
-
-					// Convert different types to string representation
 					if (cell instanceof Date) {
 						cell = cell.toISOString();
 					} else if (cell === null) {
@@ -46,8 +41,6 @@ const convertToCSV = (data: DataRow[]): string => {
 					} else {
 						cell = String(cell);
 					}
-
-					// Handle cells that contain commas or quotes
 					if (cell.includes(",") || cell.includes('"')) {
 						cell = `"${cell.replace(/"/g, '""')}"`;
 					}
@@ -59,7 +52,6 @@ const convertToCSV = (data: DataRow[]): string => {
 	return BOM + csvRows.join("\n");
 };
 
-// Helper function to decode UTF-8 strings correctly
 const decodeUTF8 = (text: string): string => {
 	try {
 		return decodeURIComponent(
@@ -72,7 +64,7 @@ const decodeUTF8 = (text: string): string => {
 				.join("")
 		);
 	} catch {
-		return text; // Return original text if decoding fails
+		return text;
 	}
 };
 
@@ -85,7 +77,6 @@ export default function DataTableExample() {
 
 	const columnHelper = createColumnHelper<DataRow>();
 
-	// Initialize new row data when columns change
 	const resetNewRowData = useCallback(() => {
 		const initialData: FormDataRow = {};
 		columns.forEach((column) => {
@@ -94,7 +85,6 @@ export default function DataTableExample() {
 		setNewRowData(initialData);
 	}, [columns]);
 
-	// Handle input change for new row form
 	const handleInputChange = (columnKey: string, value: string) => {
 		setNewRowData((prev) => ({
 			...prev,
@@ -102,48 +92,11 @@ export default function DataTableExample() {
 		}));
 	};
 
-	// Handle form submission for new row
 	const handleAddRow = () => {
 		setData((prevData) => [...prevData, newRowData]);
 		resetNewRowData();
 		setIsAddRowDialogOpen(false);
 	};
-
-	const handleExportCSV = async () => {
-		if (!data.length) {
-			alert("No data to export!");
-			return;
-		}
-		try {
-			// Get the downloads directory path
-			const downloadsPath = await downloadDir();
-
-			const filePath = await save({
-				filters: [
-					{
-						name: "CSV",
-						extensions: ["csv"],
-					},
-				],
-				defaultPath: downloadsPath,
-			});
-
-			if (filePath) {
-				const csvContent = convertToCSV(data);
-				await writeTextFile(filePath, csvContent);
-			}
-		} catch (error) {
-			console.error("Failed to export CSV:", error);
-			alert("Failed to export CSV file");
-		}
-	};
-
-	const handleClearData = useCallback((): void => {
-		if (window.confirm("Are you sure you want to clear all data?")) {
-			setData([]);
-			setColumns([]);
-		}
-	}, []);
 
 	const processFileContent = (content: string) => {
 		try {
@@ -153,7 +106,6 @@ export default function DataTableExample() {
 				const values = line.split(",");
 				const row: DataRow = {};
 				headers.forEach((header, index) => {
-					// Decode both keys and values if they're strings
 					const decodedHeader =
 						typeof header === "string"
 							? decodeUTF8(header)
@@ -184,15 +136,9 @@ export default function DataTableExample() {
 		}
 	};
 
-	const onDrop = useCallback(async (acceptedFiles: File[]) => {
-		const file = acceptedFiles[0];
-		if (!file) return;
-
-		setIsLoading(true);
+	const handleBrowseFile = async () => {
 		try {
-			// Get the documents directory path for the default location
 			const docsPath = await documentDir();
-
 			const selected = await open({
 				multiple: false,
 				directory: false,
@@ -206,7 +152,7 @@ export default function DataTableExample() {
 			});
 
 			if (selected && !Array.isArray(selected)) {
-				// Note: readTextFile now just takes the path
+				setIsLoading(true);
 				const fileContent = await readTextFile(selected);
 				processFileContent(fileContent);
 			}
@@ -215,6 +161,69 @@ export default function DataTableExample() {
 			alert("Error reading file. Please try again.");
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const handleDraggedFile = async (file: File) => {
+		setIsLoading(true);
+		try {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				const content = e.target?.result as string;
+				processFileContent(content);
+				setIsLoading(false);
+			};
+			reader.onerror = () => {
+				console.error("Error reading dragged file");
+				alert("Error reading file. Please try again.");
+				setIsLoading(false);
+			};
+			reader.readAsText(file);
+		} catch (error) {
+			console.error("Error processing dragged file:", error);
+			alert("Error processing file. Please try again.");
+			setIsLoading(false);
+		}
+	};
+
+	const onDrop = useCallback(async (acceptedFiles: File[]) => {
+		const file = acceptedFiles[0];
+		if (file) {
+			await handleDraggedFile(file);
+		}
+	}, []);
+
+	const handleExportCSV = async () => {
+		if (!data.length) {
+			alert("No data to export!");
+			return;
+		}
+		try {
+			const downloadsPath = await downloadDir();
+			const filePath = await save({
+				filters: [
+					{
+						name: "CSV",
+						extensions: ["csv"],
+					},
+				],
+				defaultPath: downloadsPath,
+			});
+
+			if (filePath) {
+				const csvContent = convertToCSV(data);
+				await writeTextFile(filePath, csvContent);
+			}
+		} catch (error) {
+			console.error("Failed to export CSV:", error);
+			alert("Failed to export CSV file");
+		}
+	};
+
+	const handleClearData = useCallback((): void => {
+		if (window.confirm("Are you sure you want to clear all data?")) {
+			setData([]);
+			setColumns([]);
 		}
 	}, []);
 
@@ -256,7 +265,14 @@ export default function DataTableExample() {
 							Drag and drop your CSV file here
 						</p>
 						<p className="text-xs text-gray-400">
-							or click to select a file
+							or{" "}
+							<Button
+								variant="link"
+								className="p-0 h-auto"
+								onClick={handleBrowseFile}>
+								browse
+							</Button>{" "}
+							to select a file
 						</p>
 					</div>
 				)}
