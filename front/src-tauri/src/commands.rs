@@ -9,7 +9,7 @@ const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/back.exe";
 const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/back";
 
 #[tauri::command]
-pub async fn process_excel_file(file_path: String) -> Result<Value, String> {
+pub async fn process_data(file_path: String) -> Result<Value, String> {
     // Verify file exists and has correct extension
     let path = Path::new(&file_path);
     if !path.exists() {
