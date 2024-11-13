@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "./widgets/data-table";
-import { Download, Plus, Upload, Trash2 } from "lucide-react";
+import { DataTable } from "@/components/widgets/data-table";
+import { Download, Plus, Upload, Trash2, Pencil } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
 import { ColumnDef } from "@tanstack/react-table";
@@ -12,12 +12,23 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface CourseData {
 	id: string;
 	course: string;
 	classes: number;
+}
+
+interface CourseInputProps {
+	onDataChange: (data: CourseData[]) => void;
 }
 
 const REQUIRED_COLUMNS = ["Course Name", "Number of Classes"];
@@ -32,15 +43,64 @@ const templateData = [
 		"Number of Classes": 2,
 	},
 ];
-interface CourseInputProps {
-	onDataChange: (data: CourseData[]) => void;
-}
 
 const CourseInput = ({ onDataChange }: CourseInputProps) => {
 	const [data, setData] = useState<CourseData[]>([]);
 	const [newCourse, setNewCourse] = useState("");
 	const [newClasses, setNewClasses] = useState("");
 	const { toast } = useToast();
+
+	// Edit dialog state
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [editingCourse, setEditingCourse] = useState<CourseData | null>(null);
+	const [editCourse, setEditCourse] = useState("");
+	const [editClasses, setEditClasses] = useState("");
+
+	const handleEditRow = (courseData: CourseData) => {
+		setEditingCourse(courseData);
+		setEditCourse(courseData.course);
+		setEditClasses(courseData.classes.toString());
+		setIsEditDialogOpen(true);
+	};
+
+	const handleSaveEdit = () => {
+		if (!editingCourse) return;
+
+		// Check for duplicate course name if name changed
+		if (
+			editCourse !== editingCourse.course &&
+			data.some(
+				(item) => item.course.toLowerCase() === editCourse.toLowerCase()
+			)
+		) {
+			toast({
+				variant: "destructive",
+				title: "Duplicate Course Name",
+				description: `A course with the name "${editCourse}" already exists.`,
+			});
+			return;
+		}
+
+		const updatedData = data.map((item) =>
+			item.id === editingCourse.id
+				? {
+						...item,
+						course: editCourse,
+						classes: parseInt(editClasses),
+				  }
+				: item
+		);
+
+		setData(updatedData);
+		onDataChange(updatedData);
+		setIsEditDialogOpen(false);
+		setEditingCourse(null);
+
+		toast({
+			title: "Course Updated",
+			description: "The course has been successfully updated.",
+		});
+	};
 
 	const validateFileData = (
 		headers: string[],
@@ -69,12 +129,12 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 				errors.push(`Row ${rowNumber}: Invalid or missing Course Name`);
 			} else {
 				// Check for duplicate course names
-				if (courseNames.has(courseName)) {
+				if (courseNames.has(courseName.toLowerCase())) {
 					errors.push(
 						`Row ${rowNumber}: Duplicate course name "${courseName}"`
 					);
 				} else {
-					courseNames.add(courseName);
+					courseNames.add(courseName.toLowerCase());
 				}
 			}
 
@@ -115,6 +175,12 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 		});
 	};
 
+	const handleDeleteRow = (id: string) => {
+		const newData = data.filter((row) => row.id !== id);
+		setData(newData);
+		onDataChange(newData);
+	};
+
 	const columns: ColumnDef<CourseData>[] = [
 		{
 			accessorKey: "course",
@@ -128,13 +194,22 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 			id: "actions",
 			cell: ({ row }) => {
 				return (
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => handleDeleteRow(row.original.id)}
-						className="h-8 w-8 p-0">
-						<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-					</Button>
+					<div className="flex gap-2">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleEditRow(row.original)}
+							className="h-8 w-8 p-0">
+							<Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleDeleteRow(row.original.id)}
+							className="h-8 w-8 p-0">
+							<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+						</Button>
+					</div>
 				);
 			},
 		},
@@ -170,12 +245,6 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 			setNewCourse("");
 			setNewClasses("");
 		}
-	};
-
-	const handleDeleteRow = (id: string) => {
-		const newData = data.filter((row) => row.id !== id);
-		setData(newData);
-		onDataChange(newData);
 	};
 
 	const downloadTemplate = (format: "csv" | "xlsx") => {
@@ -239,7 +308,7 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 					}));
 
 					setData(validData);
-					onDataChange(validData); // Add this line
+					onDataChange(validData);
 					toast({
 						title: "Success",
 						description: "File processed successfully",
@@ -266,7 +335,7 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 					}));
 
 					setData(validData);
-					onDataChange(validData); // Add this line
+					onDataChange(validData);
 					toast({
 						title: "Success",
 						description: "File processed successfully",
@@ -352,13 +421,16 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 				<Input
 					placeholder="Number of Classes"
 					type="number"
+					min="1"
 					value={newClasses}
 					onChange={(e) => setNewClasses(e.target.value)}
 					className="w-40"
 				/>
 				<Button
 					onClick={handleAddRow}
-					disabled={!newCourse || !newClasses}>
+					disabled={
+						!newCourse || !newClasses || parseInt(newClasses) < 1
+					}>
 					<Plus className="w-4 h-4 mr-2" />
 					Add
 				</Button>
@@ -367,6 +439,57 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 			<div className="border rounded-md">
 				<DataTable columns={columns} data={data} />
 			</div>
+
+			{/* Edit Dialog */}
+			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Edit Course</DialogTitle>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label htmlFor="editCourse" className="text-right">
+								Course Name
+							</label>
+							<Input
+								id="editCourse"
+								value={editCourse}
+								onChange={(e) => setEditCourse(e.target.value)}
+								className="col-span-3"
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label htmlFor="editClasses" className="text-right">
+								Number of Classes
+							</label>
+							<Input
+								id="editClasses"
+								type="number"
+								min="1"
+								value={editClasses}
+								onChange={(e) => setEditClasses(e.target.value)}
+								className="col-span-3"
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsEditDialogOpen(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleSaveEdit}
+							disabled={
+								!editCourse ||
+								!editClasses ||
+								parseInt(editClasses) < 1
+							}>
+							Save Changes
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };

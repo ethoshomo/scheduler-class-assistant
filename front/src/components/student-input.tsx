@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "./widgets/data-table";
-import { Download, Plus, Upload, Trash2 } from "lucide-react";
+import { DataTable } from "@/components/widgets/data-table";
+import { Download, Plus, Upload, Trash2, Pencil } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
 import { ColumnDef } from "@tanstack/react-table";
@@ -12,6 +12,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import {
 	Select,
 	SelectContent,
@@ -36,6 +43,14 @@ interface StudentInputProps {
 	onDataChange: (data: StudentData[]) => void;
 }
 
+const REQUIRED_COLUMNS = [
+	"Student ID",
+	"Course Name",
+	"Class Number",
+	"Grade",
+	"Preference",
+];
+
 const templateData = [
 	{
 		"Student ID": "10101010",
@@ -53,14 +68,6 @@ const templateData = [
 	},
 ];
 
-const REQUIRED_COLUMNS = [
-	"Student ID",
-	"Course Name",
-	"Class Number",
-	"Grade",
-	"Preference",
-];
-
 const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [newStudentId, setNewStudentId] = useState("");
 	const [newCourse, setNewCourse] = useState("");
@@ -68,6 +75,91 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [newGrade, setNewGrade] = useState("");
 	const [newPreference, setNewPreference] = useState("");
 	const { toast } = useToast();
+
+	// Edit dialog state
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [editingStudent, setEditingStudent] = useState<StudentData | null>(
+		null
+	);
+	const [editStudentId, setEditStudentId] = useState("");
+	const [editCourse, setEditCourse] = useState("");
+	const [editClassNumber, setEditClassNumber] = useState("");
+	const [editGrade, setEditGrade] = useState("");
+	const [editPreference, setEditPreference] = useState("");
+
+	const validateStudentData = (
+		student: Omit<StudentData, "id">
+	): string | null => {
+		if (!/^\d+$/.test(student.studentId)) {
+			return "Student ID must be numeric";
+		}
+
+		const course = courses.find((c) => c.course === student.course);
+		if (!course) {
+			return "Invalid course selected";
+		}
+
+		if (student.classNumber < 1 || student.classNumber > course.classes) {
+			return `Class number must be between 1 and ${course.classes} for this course`;
+		}
+
+		if (student.grade < 0 || student.grade > 10) {
+			return "Grade must be between 0 and 10";
+		}
+
+		if (!Number.isInteger(student.preference) || student.preference < 1) {
+			return "Preference must be a positive integer";
+		}
+
+		return null;
+	};
+
+	const handleEditRow = (studentData: StudentData) => {
+		setEditingStudent(studentData);
+		setEditStudentId(studentData.studentId);
+		setEditCourse(studentData.course);
+		setEditClassNumber(studentData.classNumber.toString());
+		setEditGrade(studentData.grade.toString());
+		setEditPreference(studentData.preference.toString());
+		setIsEditDialogOpen(true);
+	};
+
+	const handleSaveEdit = () => {
+		if (!editingStudent) return;
+
+		const newStudentData = {
+			studentId: editStudentId,
+			course: editCourse,
+			classNumber: Number(editClassNumber),
+			grade: Number(editGrade),
+			preference: Number(editPreference),
+		};
+
+		const error = validateStudentData(newStudentData);
+		if (error) {
+			toast({
+				variant: "destructive",
+				title: "Invalid Input",
+				description: error,
+			});
+			return;
+		}
+
+		const updatedData = data.map((item) =>
+			item.id === editingStudent.id
+				? { ...item, ...newStudentData }
+				: item
+		);
+
+		onDataChange(updatedData);
+		setIsEditDialogOpen(false);
+		setEditingStudent(null);
+
+		toast({
+			title: "Student Updated",
+			description: "The student record has been successfully updated.",
+		});
+	};
 
 	const validateFileData = (
 		headers: string[],
@@ -184,49 +276,37 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			id: "actions",
 			cell: ({ row }) => {
 				return (
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => handleDeleteRow(row.original.id)}
-						className="h-8 w-8 p-0">
-						<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-					</Button>
+					<div className="flex gap-2">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleEditRow(row.original)}
+							className="h-8 w-8 p-0">
+							<Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleDeleteRow(row.original.id)}
+							className="h-8 w-8 p-0">
+							<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+						</Button>
+					</div>
 				);
 			},
 		},
 	];
 
-	const validateNewRow = (): string | null => {
-		if (!/^\d+$/.test(newStudentId)) {
-			return "Student ID must be numeric";
-		}
-
-		const course = courses.find((c) => c.course === newCourse);
-		const classNum = Number(newClassNumber);
-		if (
-			!course ||
-			isNaN(classNum) ||
-			classNum < 1 ||
-			classNum > course.classes
-		) {
-			return "Invalid class number for the selected course";
-		}
-
-		const grade = Number(newGrade);
-		if (isNaN(grade) || grade < 0 || grade > 10) {
-			return "Grade must be between 0 and 10";
-		}
-
-		const preference = Number(newPreference);
-		if (!Number.isInteger(preference) || preference < 1) {
-			return "Preference must be a positive integer";
-		}
-
-		return null;
-	};
-
 	const handleAddRow = () => {
-		const error = validateNewRow();
+		const newStudentData = {
+			studentId: newStudentId,
+			course: newCourse,
+			classNumber: Number(newClassNumber),
+			grade: Number(newGrade),
+			preference: Number(newPreference),
+		};
+
+		const error = validateStudentData(newStudentData);
 		if (error) {
 			toast({
 				variant: "destructive",
@@ -240,11 +320,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			...data,
 			{
 				id: crypto.randomUUID(),
-				studentId: newStudentId,
-				course: newCourse,
-				classNumber: Number(newClassNumber),
-				grade: Number(newGrade),
-				preference: Number(newPreference),
+				...newStudentData,
 			},
 		]);
 
@@ -488,6 +564,118 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			<div className="border rounded-md">
 				<DataTable columns={columns} data={data} />
 			</div>
+
+			{/* Edit Dialog */}
+			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Edit Student Record</DialogTitle>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label
+								htmlFor="editStudentId"
+								className="text-right">
+								Student ID
+							</label>
+							<Input
+								id="editStudentId"
+								value={editStudentId}
+								onChange={(e) =>
+									setEditStudentId(e.target.value)
+								}
+								className="col-span-3"
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label className="text-right">Course</label>
+							<Select
+								value={editCourse}
+								onValueChange={setEditCourse}>
+								<SelectTrigger className="col-span-3">
+									<SelectValue placeholder="Select Course" />
+								</SelectTrigger>
+								<SelectContent>
+									{courses.map((course) => (
+										<SelectItem
+											key={course.course}
+											value={course.course}>
+											{course.course}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label
+								htmlFor="editClassNumber"
+								className="text-right">
+								Class Number
+							</label>
+							<Input
+								id="editClassNumber"
+								type="number"
+								min="1"
+								value={editClassNumber}
+								onChange={(e) =>
+									setEditClassNumber(e.target.value)
+								}
+								className="col-span-3"
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label htmlFor="editGrade" className="text-right">
+								Grade
+							</label>
+							<Input
+								id="editGrade"
+								type="number"
+								step="0.1"
+								min="0"
+								max="10"
+								value={editGrade}
+								onChange={(e) => setEditGrade(e.target.value)}
+								className="col-span-3"
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<label
+								htmlFor="editPreference"
+								className="text-right">
+								Preference
+							</label>
+							<Input
+								id="editPreference"
+								type="number"
+								min="1"
+								value={editPreference}
+								onChange={(e) =>
+									setEditPreference(e.target.value)
+								}
+								className="col-span-3"
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsEditDialogOpen(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleSaveEdit}
+							disabled={
+								!editStudentId ||
+								!editCourse ||
+								!editClassNumber ||
+								!editGrade ||
+								!editPreference
+							}>
+							Save Changes
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };

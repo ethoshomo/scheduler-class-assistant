@@ -25,8 +25,8 @@ const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
 interface VerticalStepperProps {
 	steps?: Step[];
 	className?: string;
-	onStepComplete?: (stepIndex: number) => boolean; // Changed return type to boolean
-	onStepBack?: (stepIndex: number) => boolean; // Changed return type to boolean
+	onStepComplete?: (stepIndex: number) => boolean;
+	onStepBack?: (stepIndex: number) => boolean;
 }
 
 const Stepper: React.FC<VerticalStepperProps> = ({
