@@ -1,19 +1,15 @@
 import Stepper, { StepStatus } from "./components/widgets/stepper";
-import DataTableExample from "./components/widgets/example";
+import CourseInput from "./components/widgets/course-input";
 
 // Example usage with form content
 const TestStepper: React.FC = () => {
 	const steps = [
 		{
 			title: "Courses & Classes",
-			description: "Enter the courses and classes details",
+			description: "Enter the courses and their number of classes",
 			content: (
 				<div className="space-y-4">
-					{/* Add your form fields here */}
-					<p className="text-sm text-muted-foreground">
-						Type or Upload File
-					</p>
-					<DataTableExample />
+					<CourseInput />
 				</div>
 			),
 		},
