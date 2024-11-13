@@ -105,7 +105,10 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	};
 
 	const validateStudentData = (
-		student: Omit<StudentData, "id">
+		student: Omit<StudentData, "id">,
+		existingData: StudentData[] = data,
+		isEdit: boolean = false,
+		editingId?: string
 	): string | null => {
 		if (!/^\d+$/.test(student.studentId)) {
 			return "Student ID must be numeric";
@@ -126,6 +129,18 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 
 		if (!Number.isInteger(student.preference) || student.preference < 1) {
 			return "Preference must be a positive integer";
+		}
+
+		// Check for duplicate student-course combination
+		const duplicateEntry = existingData.find(
+			(entry) =>
+				entry.studentId === student.studentId &&
+				entry.course === student.course &&
+				(!isEdit || entry.id !== editingId)
+		);
+
+		if (duplicateEntry) {
+			return `Student ${student.studentId} is already registered for course ${student.course}`;
 		}
 
 		return null;
@@ -152,7 +167,12 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			preference: Number(editPreference),
 		};
 
-		const error = validateStudentData(newStudentData);
+		const error = validateStudentData(
+			newStudentData,
+			data,
+			true,
+			editingStudent.id
+		);
 		if (error) {
 			toast({
 				variant: "destructive",
@@ -183,6 +203,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		rows: any[]
 	): { isValid: boolean; errors: string[] } => {
 		const errors: string[] = [];
+		const studentCourses = new Set<string>();
 
 		// Check if all required columns are present
 		const missingColumns = REQUIRED_COLUMNS.filter(
@@ -203,13 +224,25 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				errors.push(
 					`Row ${rowNumber}: Invalid Student ID (must be numeric)`
 				);
+				return;
 			}
 
 			// Check Course Name
 			const courseName = row["Course Name"];
 			if (!courseName || !courses.some((c) => c.course === courseName)) {
 				errors.push(`Row ${rowNumber}: Invalid or unknown Course Name`);
+				return;
 			}
+
+			// Check for duplicate student-course combination
+			const studentCourseKey = `${row["Student ID"]}-${courseName}`;
+			if (studentCourses.has(studentCourseKey)) {
+				errors.push(
+					`Row ${rowNumber}: Student ${row["Student ID"]} is already registered for course ${courseName}`
+				);
+				return;
+			}
+			studentCourses.add(studentCourseKey);
 
 			// Check Class Number
 			const classNumber = Number(row["Class Number"]);
