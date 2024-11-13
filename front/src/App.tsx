@@ -39,11 +39,11 @@ const TestStepper: React.FC = () => {
 		try {
 			// Create combined data for export
 			const processedData = studentData.map((student) => ({
-				NUSP: student.studentId,
-				Disciplina: student.course.split(" - Turma ")[0],
-				Turma: student.classNumber,
-				Nota: student.grade,
-				Preferencia: student.preference,
+				"Student ID": student.studentId,
+				"Course Name": student.course.split(" - Class ")[0],
+				"Class Number": student.classNumber,
+				Grade: student.grade,
+				Preference: student.preference,
 			}));
 
 			// Create workbook
