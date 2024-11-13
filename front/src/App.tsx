@@ -84,26 +84,26 @@ const TestStepper: React.FC = () => {
 				</div>
 			),
 		},
-		{
-			title: "Settings",
-			description: "Edit assistant settings",
-			content: (
-				<div className="space-y-4">
-					<p className="text-sm text-muted-foreground">
-						Type or Upload File
-					</p>
-				</div>
-			),
-		},
-		{
-			title: "Review",
-			description: "Review the information",
-			content: (
-				<div className="space-y-4">
-					<p className="text-sm text-muted-foreground">Review</p>
-				</div>
-			),
-		},
+		// {
+		// 	title: "Settings",
+		// 	description: "Edit assistant settings",
+		// 	content: (
+		// 		<div className="space-y-4">
+		// 			<p className="text-sm text-muted-foreground">
+		// 				Type or Upload File
+		// 			</p>
+		// 		</div>
+		// 	),
+		// },
+		// {
+		// 	title: "Review",
+		// 	description: "Review the information",
+		// 	content: (
+		// 		<div className="space-y-4">
+		// 			<p className="text-sm text-muted-foreground">Review</p>
+		// 		</div>
+		// 	),
+		// },
 	].map((step) => ({ ...step, status: "pending" as StepStatus }));
 
 	const handleStepComplete = (stepIndex: number) => {

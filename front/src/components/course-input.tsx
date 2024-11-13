@@ -18,6 +18,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
+	DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -445,6 +446,9 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Edit Course</DialogTitle>
+						<DialogDescription>
+							Make changes to the course details below.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-4 items-center gap-4">

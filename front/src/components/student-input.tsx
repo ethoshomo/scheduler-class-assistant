@@ -18,6 +18,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
+	DialogDescription,
 } from "@/components/ui/dialog";
 import {
 	Select,
@@ -570,6 +571,9 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Edit Student Record</DialogTitle>
+						<DialogDescription>
+							Make changes to the student record below.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-4 items-center gap-4">
