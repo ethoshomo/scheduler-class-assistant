@@ -141,7 +141,7 @@ def run(disciplinas, candidatos, preferencias, da):
             better = res
 
     metrics = {
-        'best_creature': better,
+        'best_individual': better,
         'number_classes': contar_salas(better, disciplinas, preferencias),
         'satisfaction': medir_satisfacao(better, disciplinas, preferencias)
     }

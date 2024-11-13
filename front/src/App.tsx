@@ -3,6 +3,10 @@ import Stepper, { StepStatus } from "./components/widgets/stepper";
 import CourseInput from "./components/course-input";
 import StudentInput from "./components/student-input";
 import { useToast } from "@/hooks/use-toast";
+import { invoke } from "@tauri-apps/api/core";
+import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
+import { appConfigDir, join } from "@tauri-apps/api/path";
+import * as XLSX from "xlsx";
 
 interface CourseData {
 	id: string;
@@ -22,6 +26,7 @@ interface StudentData {
 const TestStepper: React.FC = () => {
 	const [courseData, setCourseData] = useState<CourseData[]>([]);
 	const [studentData, setStudentData] = useState<StudentData[]>([]);
+	const [isProcessing, setIsProcessing] = useState(false);
 	const { toast } = useToast();
 
 	const handleCourseDataChange = (newCourseData: CourseData[]) => {
@@ -29,7 +34,73 @@ const TestStepper: React.FC = () => {
 		setStudentData([]);
 	};
 
-	const validateStep = (stepIndex: number): boolean => {
+	const processDataWithBackend = async () => {
+		setIsProcessing(true);
+		try {
+			// Create combined data for export
+			const processedData = studentData.map((student) => ({
+				NUSP: student.studentId,
+				Disciplina: student.course.split(" - Turma ")[0],
+				Turma: student.classNumber,
+				Nota: student.grade,
+				Preferencia: student.preference,
+			}));
+
+			// Create workbook
+			const ws = XLSX.utils.json_to_sheet(processedData);
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, "Data");
+
+			// Convert to array buffer
+			const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+			const buffer = new Uint8Array(wbout);
+
+			// Ensure directory exists
+			await mkdir("", {
+				baseDir: BaseDirectory.AppConfig,
+				recursive: true,
+			});
+
+			const filename = "temp_data.xlsx";
+
+			// Write file
+			await writeFile(filename, buffer, {
+				baseDir: BaseDirectory.AppConfig,
+			});
+
+			// Get the absolute file path
+			const configDir = await appConfigDir();
+			const filePath = await join(configDir, filename);
+
+			// Process with Python backend
+			const result = await invoke("process_data", {
+				filePath: filePath,
+			});
+
+			toast({
+				title: "Success",
+				description: "Data processed successfully!",
+			});
+
+			console.log("Backend processing result:", result);
+			return true;
+		} catch (error) {
+			console.error("Error processing data:", error);
+			toast({
+				variant: "destructive",
+				title: "Processing Error",
+				description:
+					error instanceof Error
+						? error.message
+						: "An error occurred while processing the data",
+			});
+			return false;
+		} finally {
+			setIsProcessing(false);
+		}
+	};
+
+	const validateStep = async (stepIndex: number): Promise<boolean> => {
 		switch (stepIndex) {
 			case 0:
 				if (courseData.length === 0) {
@@ -53,9 +124,9 @@ const TestStepper: React.FC = () => {
 					});
 					return false;
 				}
-				return true;
+				// Process data with backend when completing step 2
+				return await processDataWithBackend();
 
-			// Add validation for other steps as needed
 			default:
 				return true;
 		}
@@ -84,40 +155,15 @@ const TestStepper: React.FC = () => {
 				</div>
 			),
 		},
-		// {
-		// 	title: "Settings",
-		// 	description: "Edit assistant settings",
-		// 	content: (
-		// 		<div className="space-y-4">
-		// 			<p className="text-sm text-muted-foreground">
-		// 				Type or Upload File
-		// 			</p>
-		// 		</div>
-		// 	),
-		// },
-		// {
-		// 	title: "Review",
-		// 	description: "Review the information",
-		// 	content: (
-		// 		<div className="space-y-4">
-		// 			<p className="text-sm text-muted-foreground">Review</p>
-		// 		</div>
-		// 	),
-		// },
 	].map((step) => ({ ...step, status: "pending" as StepStatus }));
 
-	const handleStepComplete = (stepIndex: number) => {
-		if (!validateStep(stepIndex)) {
-			return false;
-		}
-		console.log(`Step ${stepIndex} completed`);
-		return true;
+	const handleStepComplete = async (stepIndex: number) => {
+		if (isProcessing) return false;
+		return await validateStep(stepIndex);
 	};
 
-	const handleStepBack = (stepIndex: number) => {
-		console.log(`Moved back from step ${stepIndex}`);
-		return true;
-	};
+	// Simple implementation since we don't need special validation for going back
+	const handleStepBack = async () => true;
 
 	return (
 		<Stepper

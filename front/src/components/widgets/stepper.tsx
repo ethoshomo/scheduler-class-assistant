@@ -25,8 +25,8 @@ const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
 interface VerticalStepperProps {
 	steps?: Step[];
 	className?: string;
-	onStepComplete?: (stepIndex: number) => boolean;
-	onStepBack?: (stepIndex: number) => boolean;
+	onStepComplete?: (stepIndex: number) => Promise<boolean> | boolean;
+	onStepBack?: (stepIndex: number) => Promise<boolean> | boolean;
 }
 
 const Stepper: React.FC<VerticalStepperProps> = ({
@@ -36,6 +36,7 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 	onStepBack,
 }) => {
 	const [currentStep, setCurrentStep] = useState(0);
+	const [isProcessing, setIsProcessing] = useState(false);
 
 	const getStepStatus = (index: number): StepStatus => {
 		if (index < currentStep) return "complete";
@@ -65,20 +66,33 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 		}
 	};
 
-	const handleNext = () => {
-		if (currentStep < steps.length - 1) {
-			const canProceed = onStepComplete?.(currentStep);
-			if (canProceed) {
-				setCurrentStep((prev) => prev + 1);
+	const handleNext = async () => {
+		if (!isProcessing) {
+			setIsProcessing(true);
+			try {
+				const canProceed = await onStepComplete?.(currentStep);
+				if (canProceed) {
+					// Only increment step if not on last step
+					if (currentStep < steps.length - 1) {
+						setCurrentStep((prev) => prev + 1);
+					}
+				}
+			} finally {
+				setIsProcessing(false);
 			}
 		}
 	};
 
-	const handleBack = () => {
-		if (currentStep > 0) {
-			const canGoBack = onStepBack?.(currentStep);
-			if (canGoBack) {
-				setCurrentStep((prev) => prev - 1);
+	const handleBack = async () => {
+		if (currentStep > 0 && !isProcessing) {
+			setIsProcessing(true);
+			try {
+				const canGoBack = await onStepBack?.(currentStep);
+				if (canGoBack) {
+					setCurrentStep((prev) => prev - 1);
+				}
+			} finally {
+				setIsProcessing(false);
 			}
 		}
 	};
@@ -153,17 +167,19 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 											<Button
 												variant="outline"
 												onClick={handleBack}
-												disabled={currentStep === 0}>
+												disabled={
+													currentStep === 0 ||
+													isProcessing
+												}>
 												Back
 											</Button>
 											<Button
 												onClick={handleNext}
-												disabled={
-													currentStep ===
-													steps.length - 1
-												}>
-												{currentStep ===
-												steps.length - 1
+												disabled={isProcessing}>
+												{isProcessing
+													? "Processing..."
+													: currentStep ===
+													  steps.length - 1
 													? "Complete"
 													: "Next"}
 											</Button>
