@@ -13,13 +13,6 @@ interface Step {
 	content: React.ReactNode;
 }
 
-interface VerticalStepperProps {
-	steps?: Step[];
-	className?: string;
-	onStepComplete?: (stepIndex: number) => void;
-	onStepBack?: (stepIndex: number) => void;
-}
-
 const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
 	if (status === "complete") {
 		return <Check className="h-4 w-4 text-primary-foreground" />;
@@ -28,6 +21,13 @@ const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
 	}
 	return <div className="h-4 w-4 rounded-full bg-muted" />;
 };
+
+interface VerticalStepperProps {
+	steps?: Step[];
+	className?: string;
+	onStepComplete?: (stepIndex: number) => boolean; // Changed return type to boolean
+	onStepBack?: (stepIndex: number) => boolean; // Changed return type to boolean
+}
 
 const Stepper: React.FC<VerticalStepperProps> = ({
 	steps = [],
@@ -67,15 +67,19 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 
 	const handleNext = () => {
 		if (currentStep < steps.length - 1) {
-			setCurrentStep((prev) => prev + 1);
-			onStepComplete?.(currentStep);
+			const canProceed = onStepComplete?.(currentStep);
+			if (canProceed) {
+				setCurrentStep((prev) => prev + 1);
+			}
 		}
 	};
 
 	const handleBack = () => {
 		if (currentStep > 0) {
-			setCurrentStep((prev) => prev - 1);
-			onStepBack?.(currentStep);
+			const canGoBack = onStepBack?.(currentStep);
+			if (canGoBack) {
+				setCurrentStep((prev) => prev - 1);
+			}
 		}
 	};
 

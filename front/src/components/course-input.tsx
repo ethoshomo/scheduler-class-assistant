@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "./data-table";
+import { DataTable } from "./widgets/data-table";
 import { Download, Plus, Upload, Trash2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
@@ -32,8 +32,11 @@ const templateData = [
 		"Number of Classes": 2,
 	},
 ];
+interface CourseInputProps {
+	onDataChange: (data: CourseData[]) => void;
+}
 
-const CourseInput = () => {
+const CourseInput = ({ onDataChange }: CourseInputProps) => {
 	const [data, setData] = useState<CourseData[]>([]);
 	const [newCourse, setNewCourse] = useState("");
 	const [newClasses, setNewClasses] = useState("");
@@ -112,10 +115,6 @@ const CourseInput = () => {
 		});
 	};
 
-	const handleDeleteRow = (id: string) => {
-		setData(data.filter((row) => row.id !== id));
-	};
-
 	const columns: ColumnDef<CourseData>[] = [
 		{
 			accessorKey: "course",
@@ -143,7 +142,6 @@ const CourseInput = () => {
 
 	const handleAddRow = () => {
 		if (newCourse && newClasses) {
-			// Check if course name already exists
 			if (
 				data.some(
 					(item) =>
@@ -158,17 +156,26 @@ const CourseInput = () => {
 				return;
 			}
 
-			setData([
+			const newData = [
 				...data,
 				{
 					id: crypto.randomUUID(),
 					course: newCourse,
 					classes: parseInt(newClasses),
 				},
-			]);
+			];
+
+			setData(newData);
+			onDataChange(newData);
 			setNewCourse("");
 			setNewClasses("");
 		}
+	};
+
+	const handleDeleteRow = (id: string) => {
+		const newData = data.filter((row) => row.id !== id);
+		setData(newData);
+		onDataChange(newData);
 	};
 
 	const downloadTemplate = (format: "csv" | "xlsx") => {
@@ -205,7 +212,6 @@ const CourseInput = () => {
 						.split(",")
 						.map((header) => header.trim());
 
-					// Parse rows into objects
 					const parsedRows = rows
 						.slice(1)
 						.filter((row) => row.trim())
@@ -219,7 +225,6 @@ const CourseInput = () => {
 							}, {} as Record<string, string>);
 						});
 
-					// Validate the data
 					const validation = validateFileData(headers, parsedRows);
 
 					if (!validation.isValid) {
@@ -234,6 +239,7 @@ const CourseInput = () => {
 					}));
 
 					setData(validData);
+					onDataChange(validData); // Add this line
 					toast({
 						title: "Success",
 						description: "File processed successfully",
@@ -245,10 +251,7 @@ const CourseInput = () => {
 					const sheet = workbook.Sheets[sheetName];
 					const parsedRows = XLSX.utils.sheet_to_json(sheet);
 
-					// Get headers from the first row
 					const headers = Object.keys(parsedRows[0] || {});
-
-					// Validate the data
 					const validation = validateFileData(headers, parsedRows);
 
 					if (!validation.isValid) {
@@ -263,6 +266,7 @@ const CourseInput = () => {
 					}));
 
 					setData(validData);
+					onDataChange(validData); // Add this line
 					toast({
 						title: "Success",
 						description: "File processed successfully",
