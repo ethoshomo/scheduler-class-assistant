@@ -158,9 +158,12 @@ def run(disciplinas, candidatos, preferencias, da):
 
     return metrics, result_rows
 
-def process_excel(excel_path:str) -> pd.DataFrame:
-    df = pd.read_excel(excel_path)
-    
+def process_excel(file_path:str, excel_flag:bool) -> pd.DataFrame:
+    if excel_flag:
+        df = pd.read_excel(file_path)
+    else:
+        df = pd.read_csv(file_path)
+
     if 'NUSP' not in df.columns:
             raise Exception('Coluna "NUSP" é obrigatória na tabela dos monitores!')
             
@@ -201,7 +204,11 @@ def process_excel(excel_path:str) -> pd.DataFrame:
 def main():
     excel_path = sys.argv[1]
     
-    disciplinas, candidatos, preferencias, da = process_excel(excel_path)
+    excel = True
+    if excel_path.endswith('.csv'):
+        excel = False
+
+    disciplinas, candidatos, preferencias, da = process_excel(excel_path, excel)
 
     metrics, result_rows = run(disciplinas, candidatos, preferencias, da)
     
