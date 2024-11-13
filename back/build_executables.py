@@ -18,8 +18,8 @@ def create_directories():
 
 def compile_for_platform():
     current_platform = platform.system()
-    # Get the absolute path to test.py in the same directory as this script
-    source_file = os.path.join(os.path.dirname(__file__), "test.py")
+    # Get the absolute path to back.py in the same directory as this script
+    source_file = os.path.join(os.path.dirname(__file__), "back.py")
     # Get the path to front/src-tauri relative to the script location
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
