@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/widgets/data-table";
-import { Download, Plus, Upload, Trash2, Pencil } from "lucide-react";
+import { Download, Plus, Upload, Trash2, Pencil, XCircle } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
 import { ColumnDef } from "@tanstack/react-table";
@@ -19,6 +19,7 @@ import {
 	DialogTitle,
 	DialogFooter,
 	DialogDescription,
+	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
 	Select,
@@ -75,6 +76,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [newClassNumber, setNewClassNumber] = useState("");
 	const [newGrade, setNewGrade] = useState("");
 	const [newPreference, setNewPreference] = useState("");
+	const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 	const { toast } = useToast();
 
 	// Edit dialog state
@@ -87,6 +89,20 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [editClassNumber, setEditClassNumber] = useState("");
 	const [editGrade, setEditGrade] = useState("");
 	const [editPreference, setEditPreference] = useState("");
+
+	const handleClearAll = () => {
+		onDataChange([]);
+		setNewStudentId("");
+		setNewCourse("");
+		setNewClassNumber("");
+		setNewGrade("");
+		setNewPreference("");
+		setIsClearDialogOpen(false);
+		toast({
+			title: "Data Cleared",
+			description: "All student data has been cleared.",
+		});
+	};
 
 	const validateStudentData = (
 		student: Omit<StudentData, "id">
@@ -463,34 +479,74 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		<div className="space-y-6">
 			<div className="flex justify-between items-center">
 				<h3 className="text-lg font-medium">Student Details</h3>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="outline" size="sm">
-							<Download className="w-4 h-4 mr-2" />
-							Download Template
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent>
-						<DropdownMenuItem
-							onClick={() => downloadTemplate("csv")}>
-							CSV Format
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => downloadTemplate("xlsx")}>
-							Excel Format
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<div className="flex gap-2">
+					<Dialog
+						open={isClearDialogOpen}
+						onOpenChange={setIsClearDialogOpen}>
+						<DialogTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="gap-2">
+								<XCircle className="w-4 h-4" />
+								Clear All
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Clear All Data</DialogTitle>
+								<DialogDescription>
+									Are you sure you want to clear all student
+									data? This action cannot be undone.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setIsClearDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button
+									variant="destructive"
+									onClick={handleClearAll}>
+									Clear All
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								<Download className="w-4 h-4 mr-2" />
+								Download Template
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem
+								onClick={() => downloadTemplate("csv")}>
+								CSV Format
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => downloadTemplate("xlsx")}>
+								Excel Format
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
 			</div>
 
 			<div
 				{...getRootProps()}
 				className={`
-          p-6 border-2 border-dashed rounded-lg 
-          transition-colors duration-200 ease-in-out
-          flex flex-col items-center justify-center
-          ${isDragActive ? "border-primary bg-primary/5" : "border-border"}
-        `}>
+                    p-6 border-2 border-dashed rounded-lg 
+                    transition-colors duration-200 ease-in-out
+                    flex flex-col items-center justify-center
+                    ${
+						isDragActive
+							? "border-primary bg-primary/5"
+							: "border-border"
+					}
+                `}>
 				<input {...getInputProps()} />
 				<Upload className="w-8 h-8 mb-4 text-muted-foreground" />
 				<p className="text-sm text-muted-foreground text-center">
