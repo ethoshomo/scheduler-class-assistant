@@ -15,19 +15,20 @@ def create_individual(d, da):
     of candidates is less than the number of courses, zeroes will be filled
     until the total number of courses is reached.
     """
-    i = []
+    i = [0] * len(d)
     chosen = set()
-    for students in d:
-        a = set(da[students])
+    d_random = d.copy()
+    random.shuffle(d_random)
+
+    for disc in d_random:
+        a = set(da[disc])
         a = list(a - chosen)
         if len(a) != 0:
             selected = random.choice(a)
             chosen.add(selected)
-            i.append(selected)
-        # Represents room without candidates or where candidates
-        # were chosen for other courses
+            i[d.index(disc)] = selected
         else:
-            i.append(0)
+            i[d.index(disc)] = 0
     return i
 
 
@@ -57,7 +58,7 @@ def measure_satisfaction(i, d, p):
         x = options.get(d[index], {})
         if value == 0 or x == {}:
             x = 0.0
-        preferences.append(np.exp(-0.4 * (x - 1)))
+        preferences.append(x)
     return sum(preferences)
 
 
