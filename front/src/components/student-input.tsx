@@ -135,6 +135,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			(entry) =>
 				entry.studentId === student.studentId &&
 				entry.course === student.course &&
+				entry.classNumber === student.classNumber &&
 				(!isEdit || entry.id !== editingId)
 		);
 

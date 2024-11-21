@@ -18,6 +18,10 @@ import Stepper, { StepStatus } from "./components/widgets/stepper";
 import CourseInput from "./components/course-input";
 import StudentInput from "./components/student-input";
 import { useToast } from "@/hooks/use-toast";
+import { invoke } from "@tauri-apps/api/core";
+import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
+import { appConfigDir, join } from "@tauri-apps/api/path";
+import * as XLSX from "xlsx";
 
 interface CourseData {
 	id: string;
@@ -48,7 +52,7 @@ interface AllocationResult {
 	}[];
 }
 
-const AlgorithmSelector = () => {
+const App = () => {
 	const [courseData, setCourseData] = useState<CourseData[]>([]);
 	const [studentData, setStudentData] = useState<StudentData[]>([]);
 	const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
@@ -72,37 +76,77 @@ const AlgorithmSelector = () => {
 				description: "Starting allocation process...",
 			});
 
-			// Simulate backend processing - replace with actual backend call
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			if (selectedAlgorithm === "genetic") {
+				// Prepare data for the genetic algorithm
+				const processedData = studentData.map((student) => ({
+					"Student ID": parseInt(student.studentId),
+					"Course Name": student.course,
+					"Class Number": student.classNumber,
+					Grade: student.grade,
+					Preference: student.preference,
+				}));
 
-			// Mock result - replace with actual backend response
-			const mockResult = {
-				metrics: {
-					best_individual: [1, 2, 3],
-					number_classes: 3,
-					satisfaction: 0.85,
-				},
-				results: [
-					{
-						class: "Course A",
-						student: "12345",
-						grade: 8.5,
-						preference: { "Course A": 1 },
-					},
-				],
-			};
+				// Create workbook
+				const ws = XLSX.utils.json_to_sheet(processedData);
+				const wb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(wb, ws, "Data");
 
-			setAllocationResult(mockResult);
+				// Convert to array buffer
+				const wbout = XLSX.write(wb, {
+					bookType: "xlsx",
+					type: "array",
+				});
+				const buffer = new Uint8Array(wbout);
 
-			toast({
-				title: "Success",
-				description: "Allocation completed successfully!",
-			});
+				// Ensure directory exists
+				await mkdir("", {
+					baseDir: BaseDirectory.AppConfig,
+					recursive: true,
+				});
 
-			return true;
+				const filename = "temp_data.xlsx";
+
+				// Write file
+				await writeFile(filename, buffer, {
+					baseDir: BaseDirectory.AppConfig,
+				});
+
+				// Get the absolute file path
+				const configDir = await appConfigDir();
+				const filePath = await join(configDir, filename);
+
+				// Process with genetic algorithm
+				const result = await invoke("run_genetic", {
+					filePath: filePath,
+				});
+
+				console.log(result);
+
+				if (typeof result === "object" && result !== null) {
+					const typedResult = result as { data?: AllocationResult };
+					if (typedResult.data) {
+						setAllocationResult(typedResult.data);
+						toast({
+							title: "Success",
+							description: "Allocation completed successfully!",
+						});
+						return true;
+					}
+				}
+				throw new Error("Invalid response from genetic algorithm");
+			} else if (selectedAlgorithm === "simplex") {
+				// Implement simplex algorithm processing here if needed
+				toast({
+					variant: "destructive",
+					title: "Not Implemented",
+					description: "Simplex algorithm is not yet implemented.",
+				});
+				return false;
+			}
+
+			return false;
 		} catch (error) {
 			console.error("Error processing data:", error);
-
 			toast({
 				variant: "destructive",
 				title: "Processing Error",
@@ -111,7 +155,6 @@ const AlgorithmSelector = () => {
 						? error.message
 						: "An error occurred while processing the data",
 			});
-
 			return false;
 		} finally {
 			setIsProcessing(false);
@@ -256,46 +299,6 @@ const AlgorithmSelector = () => {
 		</div>
 	);
 
-	const steps = [
-		{
-			title: "Courses & Classes",
-			description: "Enter the courses and their number of classes",
-			content: (
-				<div className="space-y-4">
-					<CourseInput onDataChange={handleCourseDataChange} />
-				</div>
-			),
-		},
-		{
-			title: "Tutors & Preferences",
-			description: "Enter tutors details and preference values",
-			content: (
-				<div className="space-y-4">
-					<StudentInput
-						courses={courseData}
-						data={studentData}
-						onDataChange={setStudentData}
-					/>
-				</div>
-			),
-		},
-		{
-			title: "Algorithm Selection",
-			description: "Choose the allocation algorithm",
-			content: <AlgorithmSelectionStep />,
-		},
-		{
-			title: "Processing",
-			description: "Allocating tutors to courses",
-			content: <ProcessingStep />,
-		},
-		{
-			title: "Results",
-			description: "View allocation results",
-			content: <ResultsStep />,
-		},
-	].map((step) => ({ ...step, status: "pending" as StepStatus }));
-
 	const validateStep = async (stepIndex: number): Promise<boolean> => {
 		if (isProcessing) return false;
 
@@ -334,10 +337,8 @@ const AlgorithmSelector = () => {
 					});
 					return false;
 				}
+				processDataWithBackend();
 				return true;
-
-			case 3:
-				return await processDataWithBackend();
 
 			default:
 				return true;
@@ -345,6 +346,47 @@ const AlgorithmSelector = () => {
 	};
 
 	const handleStepBack = async () => !isProcessing;
+
+	const steps = [
+		{
+			title: "Courses & Classes",
+			description: "Enter the courses and their number of classes",
+			content: (
+				<div className="space-y-4">
+					<CourseInput onDataChange={handleCourseDataChange} />
+				</div>
+			),
+		},
+		{
+			title: "Tutors & Preferences",
+			description: "Enter tutors details and preference values",
+			content: (
+				<div className="space-y-4">
+					<StudentInput
+						courses={courseData}
+						data={studentData}
+						onDataChange={setStudentData}
+					/>
+				</div>
+			),
+		},
+		{
+			title: "Algorithm Selection",
+			description: "Choose the allocation algorithm",
+			content: <AlgorithmSelectionStep />,
+		},
+		isProcessing
+			? {
+					title: "Processing",
+					description: "Allocating tutors to courses",
+					content: <ProcessingStep />,
+			  }
+			: {
+					title: "Results",
+					description: "View allocation results",
+					content: <ResultsStep />,
+			  },
+	].map((step) => ({ ...step, status: "pending" as StepStatus }));
 
 	return (
 		<Stepper
@@ -355,4 +397,4 @@ const AlgorithmSelector = () => {
 	);
 };
 
-export default AlgorithmSelector;
+export default App;
