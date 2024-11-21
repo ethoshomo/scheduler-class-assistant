@@ -39,8 +39,8 @@
 			"scope": {
 				"allow": [
 					{
-						"name": "back",
-						"cmd": "binaries/{{target}}/back",
+						"name": "genetic",
+						"cmd": "binaries/{{target}}/genetic",
 						"args": true
 					}
 				]
