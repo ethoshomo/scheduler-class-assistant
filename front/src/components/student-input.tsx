@@ -131,7 +131,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			return "Preference must be a positive integer";
 		}
 
-		// Check for duplicate student-course combination
 		const duplicateEntry = existingData.find(
 			(entry) =>
 				entry.studentId === student.studentId &&
@@ -195,105 +194,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		toast({
 			title: "Student Updated",
 			description: "The student record has been successfully updated.",
-		});
-	};
-
-	const validateFileData = (
-		headers: string[],
-		rows: any[]
-	): { isValid: boolean; errors: string[] } => {
-		const errors: string[] = [];
-		const studentCourses = new Set<string>();
-
-		// Check if all required columns are present
-		const missingColumns = REQUIRED_COLUMNS.filter(
-			(col) => !headers.includes(col)
-		);
-		if (missingColumns.length > 0) {
-			errors.push(
-				`Missing required columns: ${missingColumns.join(", ")}`
-			);
-		}
-
-		// Validate each row
-		rows.forEach((row, index) => {
-			const rowNumber = index + 1;
-
-			// Check Student ID
-			if (!row["Student ID"] || !/^\d+$/.test(row["Student ID"])) {
-				errors.push(
-					`Row ${rowNumber}: Invalid Student ID (must be numeric)`
-				);
-				return;
-			}
-
-			// Check Course Name
-			const courseName = row["Course Name"];
-			if (!courseName || !courses.some((c) => c.course === courseName)) {
-				errors.push(`Row ${rowNumber}: Invalid or unknown Course Name`);
-				return;
-			}
-
-			// Check for duplicate student-course combination
-			const studentCourseKey = `${row["Student ID"]}-${courseName}`;
-			if (studentCourses.has(studentCourseKey)) {
-				errors.push(
-					`Row ${rowNumber}: Student ${row["Student ID"]} is already registered for course ${courseName}`
-				);
-				return;
-			}
-			studentCourses.add(studentCourseKey);
-
-			// Check Class Number
-			const classNumber = Number(row["Class Number"]);
-			const course = courses.find((c) => c.course === courseName);
-			if (
-				!course ||
-				isNaN(classNumber) ||
-				classNumber < 1 ||
-				classNumber > course.classes
-			) {
-				errors.push(
-					`Row ${rowNumber}: Invalid Class Number for the course`
-				);
-			}
-
-			// Check Grade
-			const grade = Number(row["Grade"]);
-			if (isNaN(grade) || grade < 0 || grade > 10) {
-				errors.push(`Row ${rowNumber}: Grade must be between 0 and 10`);
-			}
-
-			// Check Preference
-			const preference = Number(row["Preference"]);
-			if (!Number.isInteger(preference) || preference < 1) {
-				errors.push(
-					`Row ${rowNumber}: Preference must be a positive integer`
-				);
-			}
-		});
-
-		return {
-			isValid: errors.length === 0,
-			errors,
-		};
-	};
-
-	const handleFileValidationError = (errors: string[]) => {
-		toast({
-			variant: "destructive",
-			title: "Error in uploaded file",
-			description: (
-				<div className="mt-2 max-h-[200px] overflow-y-auto">
-					<ul className="list-disc pl-4 space-y-1">
-						{errors.map((error, index) => (
-							<li key={index} className="text-sm">
-								{error}
-							</li>
-						))}
-					</ul>
-				</div>
-			),
 		});
 	};
 
@@ -394,6 +294,105 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		} else {
 			XLSX.writeFile(wb, "students_data_template.xlsx");
 		}
+	};
+
+	const validateFileData = (
+		headers: string[],
+		rows: any[]
+	): { isValid: boolean; errors: string[] } => {
+		const errors: string[] = [];
+		const studentCourses = new Set<string>();
+
+		// Check if all required columns are present
+		const missingColumns = REQUIRED_COLUMNS.filter(
+			(col) => !headers.includes(col)
+		);
+		if (missingColumns.length > 0) {
+			errors.push(
+				`Missing required columns: ${missingColumns.join(", ")}`
+			);
+		}
+
+		// Validate each row
+		rows.forEach((row, index) => {
+			const rowNumber = index + 1;
+
+			// Check Student ID
+			if (!row["Student ID"] || !/^\d+$/.test(row["Student ID"])) {
+				errors.push(
+					`Row ${rowNumber}: Invalid Student ID (must be numeric)`
+				);
+				return;
+			}
+
+			// Check Course Name
+			const courseName = row["Course Name"];
+			if (!courseName || !courses.some((c) => c.course === courseName)) {
+				errors.push(`Row ${rowNumber}: Invalid or unknown Course Name`);
+				return;
+			}
+
+			// Check for duplicate student-course combination
+			const studentCourseKey = `${row["Student ID"]}-${courseName}`;
+			if (studentCourses.has(studentCourseKey)) {
+				errors.push(
+					`Row ${rowNumber}: Student ${row["Student ID"]} is already registered for course ${courseName}`
+				);
+				return;
+			}
+			studentCourses.add(studentCourseKey);
+
+			// Check Class Number
+			const classNumber = Number(row["Class Number"]);
+			const course = courses.find((c) => c.course === courseName);
+			if (
+				!course ||
+				isNaN(classNumber) ||
+				classNumber < 1 ||
+				classNumber > course.classes
+			) {
+				errors.push(
+					`Row ${rowNumber}: Invalid Class Number for the course`
+				);
+			}
+
+			// Check Grade
+			const grade = Number(row["Grade"]);
+			if (isNaN(grade) || grade < 0 || grade > 10) {
+				errors.push(`Row ${rowNumber}: Grade must be between 0 and 10`);
+			}
+
+			// Check Preference
+			const preference = Number(row["Preference"]);
+			if (!Number.isInteger(preference) || preference < 1) {
+				errors.push(
+					`Row ${rowNumber}: Preference must be a positive integer`
+				);
+			}
+		});
+
+		return {
+			isValid: errors.length === 0,
+			errors,
+		};
+	};
+
+	const handleFileValidationError = (errors: string[]) => {
+		toast({
+			variant: "destructive",
+			title: "Error in uploaded file",
+			description: (
+				<div className="mt-2 max-h-[200px] overflow-y-auto">
+					<ul className="list-disc pl-4 space-y-1">
+						{errors.map((error, index) => (
+							<li key={index} className="text-sm">
+								{error}
+							</li>
+						))}
+					</ul>
+				</div>
+			),
+		});
 	};
 
 	const onDrop = async (acceptedFiles: File[]) => {
@@ -571,15 +570,11 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			<div
 				{...getRootProps()}
 				className={`
-                    p-6 border-2 border-dashed rounded-lg 
-                    transition-colors duration-200 ease-in-out
-                    flex flex-col items-center justify-center
-                    ${
-						isDragActive
-							? "border-primary bg-primary/5"
-							: "border-border"
-					}
-                `}>
+          p-6 border-2 border-dashed rounded-lg 
+          transition-colors duration-200 ease-in-out
+          flex flex-col items-center justify-center
+          ${isDragActive ? "border-primary bg-primary/5" : "border-border"}
+        `}>
 				<input {...getInputProps()} />
 				<Upload className="w-8 h-8 mb-4 text-muted-foreground" />
 				<p className="text-sm text-muted-foreground text-center">
@@ -590,15 +585,15 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				</p>
 			</div>
 
-			<div className="flex items-center space-x-4">
+			<div className="flex flex-wrap gap-4">
 				<Input
 					placeholder="Student ID"
 					value={newStudentId}
 					onChange={(e) => setNewStudentId(e.target.value)}
-					className="w-40"
+					className="flex-1 min-w-[200px]"
 				/>
 				<Select value={newCourse} onValueChange={setNewCourse}>
-					<SelectTrigger className="flex-1">
+					<SelectTrigger className="flex-1 min-w-[200px]">
 						<SelectValue placeholder="Select Course" />
 					</SelectTrigger>
 					<SelectContent>
@@ -617,7 +612,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					min="1"
 					value={newClassNumber}
 					onChange={(e) => setNewClassNumber(e.target.value)}
-					className="w-32"
+					className="w-32 min-w-[120px]"
 				/>
 				<Input
 					placeholder="Grade"
@@ -627,7 +622,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					max="10"
 					value={newGrade}
 					onChange={(e) => setNewGrade(e.target.value)}
-					className="w-32"
+					className="w-32 min-w-[120px]"
 				/>
 				<Input
 					placeholder="Preference"
@@ -635,7 +630,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					min="1"
 					value={newPreference}
 					onChange={(e) => setNewPreference(e.target.value)}
-					className="w-32"
+					className="w-32 min-w-[120px]"
 				/>
 				<Button
 					onClick={handleAddRow}
@@ -645,7 +640,8 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 						!newClassNumber ||
 						!newGrade ||
 						!newPreference
-					}>
+					}
+					className="shrink-0">
 					<Plus className="w-4 h-4 mr-2" />
 					Add
 				</Button>

@@ -58,9 +58,9 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 	const getTextStyles = (status: StepStatus): string => {
 		switch (status) {
 			case "complete":
-				return "text-primary font-medium";
+				return "text-primary";
 			case "current":
-				return "text-primary font-medium";
+				return "text-foreground";
 			default:
 				return "text-muted-foreground";
 		}
@@ -72,7 +72,6 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 			try {
 				const canProceed = await onStepComplete?.(currentStep);
 				if (canProceed) {
-					// Only increment step if not on last step
 					if (currentStep < steps.length - 1) {
 						setCurrentStep((prev) => prev + 1);
 					}
@@ -98,98 +97,100 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 	};
 
 	return (
-		<Card className={cn("max-w-3xl p-6", className)}>
-			<div className="space-y-6">
-				{steps.map((step, index) => {
-					const status = getStepStatus(index);
-					return (
-						<div key={index} className="flex">
-							{/* Left side with circle and line */}
-							<div className="flex flex-col items-center">
-								<div
-									className={cn(
-										`
-                  flex h-10 w-10 items-center justify-center rounded-full border-2
-                  transition-all duration-200 ease-in-out
-                  `,
-										getStatusStyles(status)
-									)}>
-									<StepIcon status={status} />
-								</div>
-								{index !== steps.length - 1 && (
+		<Card className={cn("h-[calc(100vh-2rem)] mx-4 my-4", className)}>
+			<div className="flex h-full divide-x">
+				{/* Left side navigation */}
+				<div className="shrink-0 w-72 p-6">
+					<div className="flex flex-col space-y-6">
+						{steps.map((step, index) => (
+							<div key={index} className="relative flex gap-4">
+								{/* Icon and line container */}
+								<div className="relative">
 									<div
 										className={cn(
-											`
-                    w-0.5 h-16 -mb-2 transition-colors duration-200
-                    `,
-											status === "complete"
-												? "bg-primary"
-												: "bg-border"
-										)}
-									/>
-								)}
-							</div>
-
-							{/* Right side with content */}
-							<div className="ml-6 pb-8 flex-1">
-								<div
-									className={cn(
-										"rounded-lg border bg-card p-4 shadow-sm",
-										status === "current"
-											? "border-primary"
-											: "border-border"
-									)}>
-									<div className="space-y-2 mb-4">
-										<p
-											className={cn(
-												"font-serif",
-												getTextStyles(status)
-											)}>
-											{step.title}
-										</p>
-										<p className="text-sm text-muted-foreground font-medium">
-											{step.description}
-										</p>
-									</div>
-
-									{/* Form content */}
-									<div
-										className={cn(
-											"transition-all duration-200",
-											status === "current"
-												? "block"
-												: "hidden"
+											"flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ease-in-out relative z-10 bg-background",
+											getStatusStyles(
+												getStepStatus(index)
+											)
 										)}>
-										{step.content}
-
-										{/* Navigation buttons */}
-										<div className="flex justify-between mt-4 pt-4 border-t">
-											<Button
-												variant="outline"
-												onClick={handleBack}
-												disabled={
-													currentStep === 0 ||
-													isProcessing
-												}>
-												Back
-											</Button>
-											<Button
-												onClick={handleNext}
-												disabled={isProcessing}>
-												{isProcessing
-													? "Processing..."
-													: currentStep ===
-													  steps.length - 1
-													? "Complete"
-													: "Next"}
-											</Button>
-										</div>
+										<StepIcon
+											status={getStepStatus(index)}
+										/>
 									</div>
+
+									{/* Vertical line */}
+									{index !== steps.length - 1 && (
+										<div
+											className={cn(
+												"absolute top-10 left-1/2 h-[calc(100%+1.5rem)] w-0.5 -translate-x-1/2",
+												index < currentStep
+													? "bg-primary"
+													: "bg-border"
+											)}
+										/>
+									)}
+								</div>
+
+								{/* Text content */}
+								<div className="flex flex-col pt-1.5">
+									<h3
+										className={cn(
+											"text-sm font-medium",
+											getTextStyles(getStepStatus(index))
+										)}>
+										{step.title}
+									</h3>
+									<p
+										className={cn(
+											"text-xs mt-0.5",
+											getStepStatus(index) === "current"
+												? "text-muted-foreground"
+												: "text-muted-foreground/60"
+										)}>
+										{step.description}
+									</p>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Right side content */}
+				<div className="flex-1 flex flex-col p-6 min-w-0">
+					{steps.map((step, index) => (
+						<div
+							key={index}
+							className={cn(
+								"h-full transition-opacity duration-200",
+								index === currentStep ? "block" : "hidden"
+							)}>
+							<div className="h-full flex flex-col">
+								<div className="flex-1 overflow-auto">
+									{step.content}
+								</div>
+								<div className="flex justify-between pt-4 mt-4 border-t">
+									<Button
+										variant="outline"
+										onClick={handleBack}
+										disabled={
+											currentStep === 0 || isProcessing
+										}>
+										Back
+									</Button>
+									<Button
+										onClick={handleNext}
+										disabled={isProcessing}>
+										{isProcessing
+											? "Processing..."
+											: currentStep === steps.length - 1
+											? "Complete"
+											: "Next"}
+									</Button>
 								</div>
 							</div>
 						</div>
-					);
-				})}
+					))}
+				</div>
 			</div>
 		</Card>
 	);
