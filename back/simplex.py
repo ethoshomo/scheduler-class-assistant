@@ -131,12 +131,12 @@ def read_courses_excel(excel_path:str):
         n = row['Number of Classes']
 
         for i in range(n):
-            courses.append(f'{course} - Turma {i}')
+            courses.append(f'{course} - Turma {i + 1}')
 
     return courses
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         result = {"success": False, "error": "No file path provided"}
         sys.stderr.write(json.dumps(result))
         sys.exit(1)
