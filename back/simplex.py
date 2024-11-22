@@ -3,7 +3,7 @@ from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary, PULP_CBC_CM
 import sys
 import json
 
-def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
+def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.DataFrame:
     if excel_flag:
         df = pd.read_excel(file_path)
     else:
@@ -23,7 +23,6 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
 
     df = df[["Student ID", "Course Name", "Class Number", "Grade", "Preference"]]
 
-    courses = list(df["Course Name"].unique())
     candidates = [i.item() for i in df["Student ID"].unique()]
 
     preferences = {}
@@ -48,7 +47,7 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
                 course_candidates[(candidate, course)] = 0
 
 
-    return courses, candidates, preferences, avarage_grades, course_candidates
+    return candidates, preferences, avarage_grades, course_candidates
 
 def run(courses, candidates, preferences, avarage_grades, course_candidates):
     modelo = LpProblem("Alocacao_de_Monitores", LpMaximize)
@@ -89,7 +88,6 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
         "soluction_status": modelo.status
     }
 
-
     result_rows = []
 
     # Monitores alocados
@@ -123,6 +121,20 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
 
     return metrics, result_rows
 
+def read_courses_excel(excel_path:str):
+    df_courses = pd.read_excel(excel_path)
+
+    courses = []
+
+    for _, row in df_courses.iterrows():
+        course = row['Course Name']
+        n = row['Number of Classes']
+
+        for i in range(n):
+            courses.append(f'{course} - Turma {i}')
+
+    return courses
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         result = {"success": False, "error": "No file path provided"}
@@ -131,12 +143,13 @@ if __name__ == "__main__":
 
     try:
         excel_path = sys.argv[1]
+        courses = read_courses_excel(sys.argv[2])
 
         excel_flag = True
         if excel_path.endswith(".csv"):
             excel_flag = False
 
-        courses, candidates, preferences, avarage_grades, course_candidates = process_file(excel_path, excel_flag)
+        candidates, preferences, avarage_grades, course_candidates = process_file(excel_path, courses, excel_flag)
         metrics, result_rows = run(courses, candidates, preferences, avarage_grades, course_candidates)
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}

@@ -189,7 +189,7 @@ def run(courses, candidates, preferences, da):
     return metrics, result_rows
 
 
-def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
+def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.DataFrame:
     if excel_flag:
         df = pd.read_excel(file_path)
     else:
@@ -209,7 +209,6 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
 
-    courses = list(df["Course Name"].unique())
     candidates = [i.item() for i in df["Student ID"].unique()]
 
     preferences = {}
@@ -230,8 +229,21 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
             if row["Course Name"] == course
         ]
 
-    return courses, candidates, preferences, da
+    return candidates, preferences, da
 
+def read_courses_excel(excel_path:str):
+    df_courses = pd.read_excel(excel_path)
+
+    courses = []
+
+    for _, row in df_courses.iterrows():
+        course = row['Course Name']
+        n = row['Number of Classes']
+
+        for i in range(n):
+            courses.append(f'{course} - Turma {i}')
+
+    return courses
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -241,12 +253,13 @@ if __name__ == "__main__":
 
     try:
         excel_path = sys.argv[1]
+        courses = read_courses_excel(sys.argv[2])
 
         excel_flag = True
         if excel_path.endswith(".csv"):
             excel_flag = False
 
-        courses, candidates, preferences, da = process_file(excel_path, excel_flag)
+        candidates, preferences, da = process_file(excel_path, courses, excel_flag)
         metrics, result_rows = run(courses, candidates, preferences, da)
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
