@@ -207,7 +207,7 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
     if "Preference" not in df.columns:
         raise Exception('Column "Preference" is required in the tutors table!')
 
-    df = df[["Student ID", "Course Name", "Class Number", "Grade", "Preference"]]
+    df = df[["Student ID", "Course Name", "Grade", "Preference"]]
 
     courses = list(df["Course Name"].unique())
     candidates = [i.item() for i in df["Student ID"].unique()]
