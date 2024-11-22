@@ -19,9 +19,11 @@ import CourseInput, { CourseData } from "./components/course-input";
 import StudentInput, { StudentData } from "./components/student-input";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
+import { exit } from "@tauri-apps/plugin-process";
 import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import * as XLSX from "xlsx";
+import { Button } from "./components/ui/button";
 
 interface AllocationResult {
 	metrics: {
@@ -46,6 +48,34 @@ const App = () => {
 	const [allocationResult, setAllocationResult] =
 		useState<AllocationResult | null>(null);
 	const { toast } = useToast();
+
+	const handleStartOver = () => {
+		setCourseData([]);
+		setStudentData([]);
+		setSelectedAlgorithm("");
+		setAllocationResult(null);
+		setIsProcessing(false);
+		setCurrentCommand(null);
+		toast({
+			title: "Reset Complete",
+			description: "All data has been cleared. You can start over.",
+		});
+		return true;
+	};
+
+	const handleExit = async () => {
+		try {
+			await exit(0);
+		} catch (error) {
+			console.error("Error while exiting:", error);
+			toast({
+				variant: "destructive",
+				title: "Exit Error",
+				description:
+					"Failed to close the application. Please try again.",
+			});
+		}
+	};
 
 	const handleCourseDataChange = (newCourseData: CourseData[]) => {
 		setCourseData(newCourseData);
@@ -422,6 +452,20 @@ const App = () => {
 				? "Allocating tutors to courses"
 				: "View allocation results",
 			content: isProcessing ? <ProcessingStep /> : <ResultsStep />,
+			actions:
+				allocationResult && !isProcessing ? (
+					<div className="flex justify-between w-full">
+						<Button
+							variant="secondary"
+							onClick={handleStartOver}
+							className="mr-2">
+							Start Over
+						</Button>
+						<Button variant="destructive" onClick={handleExit}>
+							Exit
+						</Button>
+					</div>
+				) : undefined,
 		},
 	].map((step) => ({ ...step, status: "pending" as StepStatus }));
 
@@ -432,6 +476,7 @@ const App = () => {
 			onStepBack={handleStepBack}
 			isProcessing={isProcessing}
 			forceStep={allocationResult && !isProcessing ? 3 : undefined}
+			hideDefaultButtons={Boolean(allocationResult && !isProcessing)}
 		/>
 	);
 };

@@ -11,6 +11,7 @@ interface Step {
 	description: string;
 	status: StepStatus;
 	content: React.ReactNode;
+	actions?: React.ReactNode;
 }
 
 const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
@@ -27,6 +28,7 @@ interface VerticalStepperProps {
 	className?: string;
 	isProcessing?: boolean;
 	forceStep?: number;
+	hideDefaultButtons?: boolean;
 	onStepComplete?: (stepIndex: number) => Promise<boolean> | boolean;
 	onStepBack?: (stepIndex: number) => Promise<boolean> | boolean;
 }
@@ -36,6 +38,7 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 	className = "",
 	isProcessing = false,
 	forceStep,
+	hideDefaultButtons = false,
 	onStepComplete,
 	onStepBack,
 }) => {
@@ -182,27 +185,35 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 									{step.content}
 								</div>
 								<div className="flex justify-between pt-4 mt-4 border-t">
-									<Button
-										variant="outline"
-										onClick={handleBack}
-										disabled={
-											currentStep === 0 || isProcessing
-										}>
-										Back
-									</Button>
-									<Button
-										onClick={handleNext}
-										variant={
-											isProcessing
-												? "destructive"
-												: "default"
-										}>
-										{isProcessing
-											? "Cancel"
-											: currentStep === steps.length - 1
-											? "Complete"
-											: "Next"}
-									</Button>
+									{step.actions ? (
+										step.actions
+									) : !hideDefaultButtons ? (
+										<>
+											<Button
+												variant="outline"
+												onClick={handleBack}
+												disabled={
+													currentStep === 0 ||
+													isProcessing
+												}>
+												Back
+											</Button>
+											<Button
+												onClick={handleNext}
+												variant={
+													isProcessing
+														? "destructive"
+														: "default"
+												}>
+												{isProcessing
+													? "Cancel"
+													: currentStep ===
+													  steps.length - 1
+													? "Complete"
+													: "Next"}
+											</Button>
+										</>
+									) : null}
 								</div>
 							</div>
 						</div>

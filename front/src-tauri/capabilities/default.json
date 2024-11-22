@@ -9,6 +9,7 @@
     "core:default",
     "shell:allow-open",
     "fs:default",
+    "process:default",
     {
       "identifier": "fs:allow-app-write-recursive",
       "allow": [
