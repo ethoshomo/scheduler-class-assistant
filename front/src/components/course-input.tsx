@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-interface CourseData {
+export interface CourseData {
 	id: string;
 	course: string;
 	classes: number;

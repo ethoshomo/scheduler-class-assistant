@@ -18,8 +18,8 @@ def create_directories():
 
 def compile_for_platform():
     current_platform = platform.system()
-    # Get the absolute path to back.py in the same directory as this script
-    source_file = os.path.join(os.path.dirname(__file__), "back.py")
+    # Get the absolute path to genetic.py in the same directory as this script
+    source_file = os.path.join(os.path.dirname(__file__), "genetic.py")
     # Get the path to front/src-tauri relative to the script location
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -31,37 +31,37 @@ def compile_for_platform():
     if current_platform == "Windows":
         # Compile for Windows
         subprocess.run(
-            ["pyinstaller", "--onefile", "--clean", "--name", "back", source_file],
+            ["pyinstaller", "--onefile", "--clean", "--name", "genetic", source_file],
             check=True,
         )
 
         # Move the executable to the correct directory
         target_path = os.path.join(
-            base_path, "front/src-tauri/binaries/x86_64-pc-windows-msvc/back.exe"
+            base_path, "front/src-tauri/binaries/x86_64-pc-windows-msvc/genetic.exe"
         )
         shutil.move(
-            os.path.join(os.path.dirname(__file__), "dist/back.exe"), target_path
+            os.path.join(os.path.dirname(__file__), "dist/genetic.exe"), target_path
         )
         print(f"Created Windows executable at: {target_path}")
 
     elif current_platform == "Linux":
         # Compile for Linux
         subprocess.run(
-            ["pyinstaller", "--onefile", "--clean", "--name", "back", source_file],
+            ["pyinstaller", "--onefile", "--clean", "--name", "genetic", source_file],
             check=True,
         )
 
         # Move the executable to the correct directory
         target_path = os.path.join(
-            base_path, "front/src-tauri/binaries/x86_64-unknown-linux-gnu/back"
+            base_path, "front/src-tauri/binaries/x86_64-unknown-linux-gnu/genetic"
         )
-        shutil.move(os.path.join(os.path.dirname(__file__), "dist/back"), target_path)
+        shutil.move(os.path.join(os.path.dirname(__file__), "dist/genetic"), target_path)
         print(f"Created Linux executable at: {target_path}")
 
     # Clean up PyInstaller artifacts
     build_dir = os.path.join(os.path.dirname(__file__), "build")
     dist_dir = os.path.join(os.path.dirname(__file__), "dist")
-    spec_file = os.path.join(os.path.dirname(__file__), "back.spec")
+    spec_file = os.path.join(os.path.dirname(__file__), "genetic.spec")
 
     shutil.rmtree(build_dir, ignore_errors=True)
     shutil.rmtree(dist_dir, ignore_errors=True)

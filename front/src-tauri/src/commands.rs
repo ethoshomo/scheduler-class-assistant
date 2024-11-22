@@ -3,13 +3,13 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 #[cfg(target_os = "windows")]
-const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/back.exe";
+const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
 
 #[cfg(target_os = "linux")]
-const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/back";
+const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
 
 #[tauri::command]
-pub async fn process_data(file_path: String) -> Result<Value, String> {
+pub async fn run_genetic(file_path: String) -> Result<Value, String> {
     // Verify file exists and has correct extension
     let path = Path::new(&file_path);
     if !path.exists() {
@@ -42,7 +42,7 @@ pub async fn process_data(file_path: String) -> Result<Value, String> {
         // Parse successful output
         let output_str = String::from_utf8_lossy(&output.stdout);
         serde_json::from_str(&output_str)
-            .map_err(|e| format!("Failed to parse back output as JSON: {}", e))
+            .map_err(|e| format!("Failed to parse genetic output as JSON: {}", e))
     } else {
         // Parse error output
         let error = String::from_utf8_lossy(&output.stderr);
@@ -51,7 +51,7 @@ pub async fn process_data(file_path: String) -> Result<Value, String> {
                 if let Some(error_msg) = error_json.get("error").and_then(|e| e.as_str()) {
                     Err(error_msg.to_string())
                 } else {
-                    Err("Unknown error occurred in back".to_string())
+                    Err("Unknown error occurred in genetic".to_string())
                 }
             }
             Err(_) => Err(error.to_string()),

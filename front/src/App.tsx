@@ -1,32 +1,49 @@
 import { useState } from "react";
+import {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardContent,
+	CardDescription,
+} from "@/components/ui/card";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import Stepper, { StepStatus } from "./components/widgets/stepper";
-import CourseInput from "./components/course-input";
-import StudentInput from "./components/student-input";
+import CourseInput, { CourseData } from "./components/course-input";
+import StudentInput, { StudentData } from "./components/student-input";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
 import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import * as XLSX from "xlsx";
 
-interface CourseData {
-	id: string;
-	course: string;
-	classes: number;
+interface AllocationResult {
+	metrics: {
+		best_individual: number[];
+		number_classes: number;
+		satisfaction: number;
+	};
+	results: {
+		class: string;
+		student: string;
+		grade: number;
+		preference: Record<string, number>;
+	}[];
 }
 
-interface StudentData {
-	id: string;
-	studentId: string;
-	course: string;
-	classNumber: number;
-	grade: number;
-	preference: number;
-}
-
-const TestStepper: React.FC = () => {
+const App = () => {
 	const [courseData, setCourseData] = useState<CourseData[]>([]);
 	const [studentData, setStudentData] = useState<StudentData[]>([]);
+	const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
 	const [isProcessing, setIsProcessing] = useState(false);
+	const [allocationResult, setAllocationResult] =
+		useState<AllocationResult | null>(null);
 	const { toast } = useToast();
 
 	const handleCourseDataChange = (newCourseData: CourseData[]) => {
@@ -35,55 +52,83 @@ const TestStepper: React.FC = () => {
 	};
 
 	const processDataWithBackend = async () => {
+		if (isProcessing) return false;
+
 		setIsProcessing(true);
 		try {
-			// Create combined data for export
-			const processedData = studentData.map((student) => ({
-				"Student ID": student.studentId,
-				"Course Name": student.course.split(" - Class ")[0],
-				"Class Number": student.classNumber,
-				Grade: student.grade,
-				Preference: student.preference,
-			}));
-
-			// Create workbook
-			const ws = XLSX.utils.json_to_sheet(processedData);
-			const wb = XLSX.utils.book_new();
-			XLSX.utils.book_append_sheet(wb, ws, "Data");
-
-			// Convert to array buffer
-			const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-			const buffer = new Uint8Array(wbout);
-
-			// Ensure directory exists
-			await mkdir("", {
-				baseDir: BaseDirectory.AppConfig,
-				recursive: true,
-			});
-
-			const filename = "temp_data.xlsx";
-
-			// Write file
-			await writeFile(filename, buffer, {
-				baseDir: BaseDirectory.AppConfig,
-			});
-
-			// Get the absolute file path
-			const configDir = await appConfigDir();
-			const filePath = await join(configDir, filename);
-
-			// Process with Python backend
-			const result = await invoke("process_data", {
-				filePath: filePath,
-			});
-
 			toast({
-				title: "Success",
-				description: "Data processed successfully!",
+				title: "Processing Data",
+				description: "Starting allocation process...",
 			});
 
-			console.log("Backend processing result:", result);
-			return true;
+			if (selectedAlgorithm === "genetic") {
+				// Prepare data for the genetic algorithm
+				const processedData = studentData.map((student) => ({
+					"Student ID": parseInt(student.studentId),
+					"Course Name": student.course,
+					Grade: student.grade,
+					Preference: student.preference,
+				}));
+
+				// Create workbook
+				const ws = XLSX.utils.json_to_sheet(processedData);
+				const wb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(wb, ws, "Data");
+
+				// Convert to array buffer
+				const wbout = XLSX.write(wb, {
+					bookType: "xlsx",
+					type: "array",
+				});
+				const buffer = new Uint8Array(wbout);
+
+				// Ensure directory exists
+				await mkdir("", {
+					baseDir: BaseDirectory.AppConfig,
+					recursive: true,
+				});
+
+				const filename = "temp_data.xlsx";
+
+				// Write file
+				await writeFile(filename, buffer, {
+					baseDir: BaseDirectory.AppConfig,
+				});
+
+				// Get the absolute file path
+				const configDir = await appConfigDir();
+				const filePath = await join(configDir, filename);
+
+				// Process with genetic algorithm
+				const result = await invoke("run_genetic", {
+					filePath: filePath,
+				});
+
+				console.log(result);
+
+				if (typeof result === "object" && result !== null) {
+					const typedResult = result as { data?: AllocationResult };
+					if (typedResult.data) {
+						setAllocationResult(typedResult.data);
+						toast({
+							title: "Success",
+							description: "Allocation completed successfully!",
+						});
+						return true;
+					}
+				}
+				throw new Error("Invalid response from genetic algorithm");
+			} else if (selectedAlgorithm === "simplex") {
+				// Implement simplex algorithm processing here if needed
+				toast({
+					variant: "destructive",
+					title: "Not Implemented",
+					description: "Simplex algorithm is not yet implemented.",
+				});
+				return false;
+			}
+
+			return false;
 		} catch (error) {
 			console.error("Error processing data:", error);
 			toast({
@@ -100,7 +145,147 @@ const TestStepper: React.FC = () => {
 		}
 	};
 
+	const AlgorithmSelectionStep = () => (
+		<div className="space-y-6">
+			<div className="max-w-md mx-auto">
+				<CardHeader>
+					<CardTitle>Select Algorithm</CardTitle>
+					<CardDescription>
+						Choose the algorithm to use for tutor allocation
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Select
+						value={selectedAlgorithm}
+						onValueChange={setSelectedAlgorithm}
+						disabled={isProcessing}>
+						<SelectTrigger>
+							<SelectValue placeholder="Select an algorithm" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="simplex">
+								Simplex Algorithm
+							</SelectItem>
+							<SelectItem value="genetic">
+								Genetic Algorithm
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</CardContent>
+			</div>
+		</div>
+	);
+
+	const ProcessingStep = () => (
+		<div className="flex flex-col items-center justify-center h-full space-y-4">
+			<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			<p className="text-lg font-medium">Processing Data</p>
+			<p className="text-sm text-muted-foreground">
+				Please wait while we allocate tutors to courses...
+			</p>
+			<p className="text-sm text-muted-foreground">
+				Using {selectedAlgorithm === "simplex" ? "Simplex" : "Genetic"}{" "}
+				Algorithm
+			</p>
+		</div>
+	);
+
+	const ResultsStep = () => (
+		<div className="space-y-6">
+			<CardHeader>
+				<CardTitle>Allocation Results</CardTitle>
+				<CardDescription>
+					Results using{" "}
+					{selectedAlgorithm === "simplex" ? "Simplex" : "Genetic"}{" "}
+					Algorithm
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				{allocationResult && (
+					<div className="space-y-6">
+						<Card>
+							<CardHeader>
+								<CardTitle>Summary Metrics</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<dl className="grid grid-cols-3 gap-4">
+									<div>
+										<dt className="text-sm font-medium text-muted-foreground">
+											Classes Allocated
+										</dt>
+										<dd className="text-2xl font-bold">
+											{
+												allocationResult.metrics
+													.number_classes
+											}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-sm font-medium text-muted-foreground">
+											Satisfaction Score
+										</dt>
+										<dd className="text-2xl font-bold">
+											{(
+												allocationResult.metrics
+													.satisfaction * 100
+											).toFixed(1)}
+											%
+										</dd>
+									</div>
+								</dl>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader>
+								<CardTitle>Allocation Details</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="border rounded-lg divide-y">
+									{allocationResult.results.map(
+										(result, index) => (
+											<div key={index} className="p-4">
+												<div className="grid grid-cols-2 gap-4">
+													<div>
+														<p className="text-sm font-medium">
+															Course
+														</p>
+														<p className="text-muted-foreground">
+															{result.class}
+														</p>
+													</div>
+													<div>
+														<p className="text-sm font-medium">
+															Assigned Tutor
+														</p>
+														<p className="text-muted-foreground">
+															{result.student}
+														</p>
+													</div>
+													<div>
+														<p className="text-sm font-medium">
+															Grade
+														</p>
+														<p className="text-muted-foreground">
+															{result.grade}
+														</p>
+													</div>
+												</div>
+											</div>
+										)
+									)}
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+				)}
+			</CardContent>
+		</div>
+	);
+
 	const validateStep = async (stepIndex: number): Promise<boolean> => {
+		if (isProcessing) return false;
+
 		switch (stepIndex) {
 			case 0:
 				if (courseData.length === 0) {
@@ -124,13 +309,27 @@ const TestStepper: React.FC = () => {
 					});
 					return false;
 				}
-				// Process data with backend when completing step 2
-				return await processDataWithBackend();
+				return true;
+
+			case 2:
+				if (!selectedAlgorithm) {
+					toast({
+						variant: "destructive",
+						title: "No Algorithm Selected",
+						description:
+							"Please select an algorithm before proceeding.",
+					});
+					return false;
+				}
+				processDataWithBackend();
+				return true;
 
 			default:
 				return true;
 		}
 	};
+
+	const handleStepBack = async () => !isProcessing;
 
 	const steps = [
 		{
@@ -143,7 +342,7 @@ const TestStepper: React.FC = () => {
 			),
 		},
 		{
-			title: "Tutors & Preference values",
+			title: "Tutors & Preferences",
 			description: "Enter tutors details and preference values",
 			content: (
 				<div className="space-y-4">
@@ -155,25 +354,31 @@ const TestStepper: React.FC = () => {
 				</div>
 			),
 		},
+		{
+			title: "Algorithm Selection",
+			description: "Choose the allocation algorithm",
+			content: <AlgorithmSelectionStep />,
+		},
+		isProcessing
+			? {
+					title: "Processing",
+					description: "Allocating tutors to courses",
+					content: <ProcessingStep />,
+			  }
+			: {
+					title: "Results",
+					description: "View allocation results",
+					content: <ResultsStep />,
+			  },
 	].map((step) => ({ ...step, status: "pending" as StepStatus }));
-
-	const handleStepComplete = async (stepIndex: number) => {
-		if (isProcessing) return false;
-		return await validateStep(stepIndex);
-	};
-
-	// Simple implementation since we don't need special validation for going back
-	const handleStepBack = async () => true;
 
 	return (
 		<Stepper
 			steps={steps}
-			onStepComplete={handleStepComplete}
+			onStepComplete={validateStep}
 			onStepBack={handleStepBack}
 		/>
 	);
 };
 
-export default function App() {
-	return <TestStepper />;
-}
+export default App;

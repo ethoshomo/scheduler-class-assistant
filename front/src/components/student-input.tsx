@@ -30,11 +30,10 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-interface StudentData {
+export interface StudentData {
 	id: string;
 	studentId: string;
 	course: string;
-	classNumber: number;
 	grade: number;
 	preference: number;
 }
@@ -45,26 +44,18 @@ interface StudentInputProps {
 	onDataChange: (data: StudentData[]) => void;
 }
 
-const REQUIRED_COLUMNS = [
-	"Student ID",
-	"Course Name",
-	"Class Number",
-	"Grade",
-	"Preference",
-];
+const REQUIRED_COLUMNS = ["Student ID", "Course Name", "Grade", "Preference"];
 
 const templateData = [
 	{
 		"Student ID": "10101010",
 		"Course Name": "SMA0300 - Geometria Analítica",
-		"Class Number": 1,
 		Grade: 7.5,
 		Preference: 2,
 	},
 	{
 		"Student ID": "10101010",
 		"Course Name": "SMA0353 - Cálculo I",
-		"Class Number": 2,
 		Grade: 8,
 		Preference: 1,
 	},
@@ -73,7 +64,6 @@ const templateData = [
 const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [newStudentId, setNewStudentId] = useState("");
 	const [newCourse, setNewCourse] = useState("");
-	const [newClassNumber, setNewClassNumber] = useState("");
 	const [newGrade, setNewGrade] = useState("");
 	const [newPreference, setNewPreference] = useState("");
 	const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -86,7 +76,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	);
 	const [editStudentId, setEditStudentId] = useState("");
 	const [editCourse, setEditCourse] = useState("");
-	const [editClassNumber, setEditClassNumber] = useState("");
 	const [editGrade, setEditGrade] = useState("");
 	const [editPreference, setEditPreference] = useState("");
 
@@ -94,7 +83,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		onDataChange([]);
 		setNewStudentId("");
 		setNewCourse("");
-		setNewClassNumber("");
 		setNewGrade("");
 		setNewPreference("");
 		setIsClearDialogOpen(false);
@@ -119,10 +107,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			return "Invalid course selected";
 		}
 
-		if (student.classNumber < 1 || student.classNumber > course.classes) {
-			return `Class number must be between 1 and ${course.classes} for this course`;
-		}
-
 		if (student.grade < 0 || student.grade > 10) {
 			return "Grade must be between 0 and 10";
 		}
@@ -131,7 +115,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			return "Preference must be a positive integer";
 		}
 
-		// Check for duplicate student-course combination
 		const duplicateEntry = existingData.find(
 			(entry) =>
 				entry.studentId === student.studentId &&
@@ -150,7 +133,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		setEditingStudent(studentData);
 		setEditStudentId(studentData.studentId);
 		setEditCourse(studentData.course);
-		setEditClassNumber(studentData.classNumber.toString());
 		setEditGrade(studentData.grade.toString());
 		setEditPreference(studentData.preference.toString());
 		setIsEditDialogOpen(true);
@@ -162,7 +144,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		const newStudentData = {
 			studentId: editStudentId,
 			course: editCourse,
-			classNumber: Number(editClassNumber),
 			grade: Number(editGrade),
 			preference: Number(editPreference),
 		};
@@ -196,6 +177,99 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			title: "Student Updated",
 			description: "The student record has been successfully updated.",
 		});
+	};
+
+	const handleDeleteRow = (id: string) => {
+		onDataChange(data.filter((row) => row.id !== id));
+	};
+
+	const columns: ColumnDef<StudentData>[] = [
+		{
+			accessorKey: "studentId",
+			header: "Student ID",
+		},
+		{
+			accessorKey: "course",
+			header: "Course Name",
+		},
+		{
+			accessorKey: "grade",
+			header: "Grade",
+		},
+		{
+			accessorKey: "preference",
+			header: "Preference",
+		},
+		{
+			id: "actions",
+			cell: ({ row }) => {
+				return (
+					<div className="flex gap-2">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleEditRow(row.original)}
+							className="h-8 w-8 p-0">
+							<Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => handleDeleteRow(row.original.id)}
+							className="h-8 w-8 p-0">
+							<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+						</Button>
+					</div>
+				);
+			},
+		},
+	];
+
+	const handleAddRow = () => {
+		const newStudentData = {
+			studentId: newStudentId,
+			course: newCourse,
+			grade: Number(newGrade),
+			preference: Number(newPreference),
+		};
+
+		const error = validateStudentData(newStudentData);
+		if (error) {
+			toast({
+				variant: "destructive",
+				title: "Invalid Input",
+				description: error,
+			});
+			return;
+		}
+
+		onDataChange([
+			...data,
+			{
+				id: crypto.randomUUID(),
+				...newStudentData,
+			},
+		]);
+
+		// Reset form
+		setNewStudentId("");
+		setNewCourse("");
+		setNewGrade("");
+		setNewPreference("");
+	};
+
+	const downloadTemplate = (format: "csv" | "xlsx") => {
+		const wb = XLSX.utils.book_new();
+		const ws = XLSX.utils.json_to_sheet(templateData);
+		XLSX.utils.book_append_sheet(wb, ws, "Template");
+
+		if (format === "csv") {
+			XLSX.writeFile(wb, "students_data_template.csv", {
+				bookType: "csv",
+			});
+		} else {
+			XLSX.writeFile(wb, "students_data_template.xlsx");
+		}
 	};
 
 	const validateFileData = (
@@ -244,20 +318,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			}
 			studentCourses.add(studentCourseKey);
 
-			// Check Class Number
-			const classNumber = Number(row["Class Number"]);
-			const course = courses.find((c) => c.course === courseName);
-			if (
-				!course ||
-				isNaN(classNumber) ||
-				classNumber < 1 ||
-				classNumber > course.classes
-			) {
-				errors.push(
-					`Row ${rowNumber}: Invalid Class Number for the course`
-				);
-			}
-
 			// Check Grade
 			const grade = Number(row["Grade"]);
 			if (isNaN(grade) || grade < 0 || grade > 10) {
@@ -295,105 +355,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				</div>
 			),
 		});
-	};
-
-	const handleDeleteRow = (id: string) => {
-		onDataChange(data.filter((row) => row.id !== id));
-	};
-
-	const columns: ColumnDef<StudentData>[] = [
-		{
-			accessorKey: "studentId",
-			header: "Student ID",
-		},
-		{
-			accessorKey: "course",
-			header: "Course Name",
-		},
-		{
-			accessorKey: "classNumber",
-			header: "Class Number",
-		},
-		{
-			accessorKey: "grade",
-			header: "Grade",
-		},
-		{
-			accessorKey: "preference",
-			header: "Preference",
-		},
-		{
-			id: "actions",
-			cell: ({ row }) => {
-				return (
-					<div className="flex gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => handleEditRow(row.original)}
-							className="h-8 w-8 p-0">
-							<Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => handleDeleteRow(row.original.id)}
-							className="h-8 w-8 p-0">
-							<Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-						</Button>
-					</div>
-				);
-			},
-		},
-	];
-
-	const handleAddRow = () => {
-		const newStudentData = {
-			studentId: newStudentId,
-			course: newCourse,
-			classNumber: Number(newClassNumber),
-			grade: Number(newGrade),
-			preference: Number(newPreference),
-		};
-
-		const error = validateStudentData(newStudentData);
-		if (error) {
-			toast({
-				variant: "destructive",
-				title: "Invalid Input",
-				description: error,
-			});
-			return;
-		}
-
-		onDataChange([
-			...data,
-			{
-				id: crypto.randomUUID(),
-				...newStudentData,
-			},
-		]);
-
-		// Reset form
-		setNewStudentId("");
-		setNewCourse("");
-		setNewClassNumber("");
-		setNewGrade("");
-		setNewPreference("");
-	};
-
-	const downloadTemplate = (format: "csv" | "xlsx") => {
-		const wb = XLSX.utils.book_new();
-		const ws = XLSX.utils.json_to_sheet(templateData);
-		XLSX.utils.book_append_sheet(wb, ws, "Template");
-
-		if (format === "csv") {
-			XLSX.writeFile(wb, "students_data_template.csv", {
-				bookType: "csv",
-			});
-		} else {
-			XLSX.writeFile(wb, "students_data_template.xlsx");
-		}
 	};
 
 	const onDrop = async (acceptedFiles: File[]) => {
@@ -440,7 +401,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 						id: crypto.randomUUID(),
 						studentId: row["Student ID"],
 						course: row["Course Name"],
-						classNumber: Number(row["Class Number"]),
 						grade: Number(row["Grade"]),
 						preference: Number(row["Preference"]),
 					}));
@@ -469,7 +429,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 						id: crypto.randomUUID(),
 						studentId: String((row as any)["Student ID"]),
 						course: (row as any)["Course Name"],
-						classNumber: Number((row as any)["Class Number"]),
 						grade: Number((row as any)["Grade"]),
 						preference: Number((row as any)["Preference"]),
 					}));
@@ -590,15 +549,15 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				</p>
 			</div>
 
-			<div className="flex items-center space-x-4">
+			<div className="flex flex-wrap gap-4">
 				<Input
 					placeholder="Student ID"
 					value={newStudentId}
 					onChange={(e) => setNewStudentId(e.target.value)}
-					className="w-40"
+					className="flex-1 min-w-[200px]"
 				/>
 				<Select value={newCourse} onValueChange={setNewCourse}>
-					<SelectTrigger className="flex-1">
+					<SelectTrigger className="flex-1 min-w-[200px]">
 						<SelectValue placeholder="Select Course" />
 					</SelectTrigger>
 					<SelectContent>
@@ -612,14 +571,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					</SelectContent>
 				</Select>
 				<Input
-					placeholder="Class Number"
-					type="number"
-					min="1"
-					value={newClassNumber}
-					onChange={(e) => setNewClassNumber(e.target.value)}
-					className="w-32"
-				/>
-				<Input
 					placeholder="Grade"
 					type="number"
 					step="0.1"
@@ -627,7 +578,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					max="10"
 					value={newGrade}
 					onChange={(e) => setNewGrade(e.target.value)}
-					className="w-32"
+					className="w-32 min-w-[120px]"
 				/>
 				<Input
 					placeholder="Preference"
@@ -635,17 +586,17 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					min="1"
 					value={newPreference}
 					onChange={(e) => setNewPreference(e.target.value)}
-					className="w-32"
+					className="w-32 min-w-[120px]"
 				/>
 				<Button
 					onClick={handleAddRow}
 					disabled={
 						!newStudentId ||
 						!newCourse ||
-						!newClassNumber ||
 						!newGrade ||
 						!newPreference
-					}>
+					}
+					className="shrink-0">
 					<Plus className="w-4 h-4 mr-2" />
 					Add
 				</Button>
@@ -700,23 +651,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 							</Select>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
-							<label
-								htmlFor="editClassNumber"
-								className="text-right">
-								Class Number
-							</label>
-							<Input
-								id="editClassNumber"
-								type="number"
-								min="1"
-								value={editClassNumber}
-								onChange={(e) =>
-									setEditClassNumber(e.target.value)
-								}
-								className="col-span-3"
-							/>
-						</div>
-						<div className="grid grid-cols-4 items-center gap-4">
 							<label htmlFor="editGrade" className="text-right">
 								Grade
 							</label>
@@ -760,7 +694,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 							disabled={
 								!editStudentId ||
 								!editCourse ||
-								!editClassNumber ||
 								!editGrade ||
 								!editPreference
 							}>
