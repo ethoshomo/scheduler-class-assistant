@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check, CircleDot } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ const StepIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
 interface VerticalStepperProps {
 	steps?: Step[];
 	className?: string;
+	isProcessing?: boolean;
+	forceStep?: number;
 	onStepComplete?: (stepIndex: number) => Promise<boolean> | boolean;
 	onStepBack?: (stepIndex: number) => Promise<boolean> | boolean;
 }
@@ -32,11 +34,19 @@ interface VerticalStepperProps {
 const Stepper: React.FC<VerticalStepperProps> = ({
 	steps = [],
 	className = "",
+	isProcessing = false,
+	forceStep,
 	onStepComplete,
 	onStepBack,
 }) => {
 	const [currentStep, setCurrentStep] = useState(0);
-	const [isProcessing, setIsProcessing] = useState(false);
+
+	// Handle forced step changes
+	useEffect(() => {
+		if (typeof forceStep === "number") {
+			setCurrentStep(forceStep);
+		}
+	}, [forceStep]);
 
 	const getStepStatus = (index: number): StepStatus => {
 		if (index < currentStep) return "complete";
@@ -67,31 +77,39 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 	};
 
 	const handleNext = async () => {
-		if (!isProcessing) {
-			setIsProcessing(true);
+		if (isProcessing) {
+			// If we're processing, treat this as a cancel button
 			try {
-				const canProceed = await onStepComplete?.(currentStep);
-				if (canProceed) {
-					if (currentStep < steps.length - 1) {
-						setCurrentStep((prev) => prev + 1);
-					}
+				const cancelled = await onStepComplete?.(currentStep);
+				if (cancelled) {
+					// Go back to algorithm selection step (index 2)
+					setCurrentStep(2);
 				}
-			} finally {
-				setIsProcessing(false);
+			} catch (error) {
+				console.error("Error during cancellation:", error);
 			}
+			return;
+		}
+
+		try {
+			const canProceed = await onStepComplete?.(currentStep);
+			if (canProceed && currentStep < steps.length - 1) {
+				setCurrentStep((prev) => prev + 1);
+			}
+		} catch (error) {
+			console.error("Error in step completion:", error);
 		}
 	};
 
 	const handleBack = async () => {
 		if (currentStep > 0 && !isProcessing) {
-			setIsProcessing(true);
 			try {
 				const canGoBack = await onStepBack?.(currentStep);
 				if (canGoBack) {
 					setCurrentStep((prev) => prev - 1);
 				}
-			} finally {
-				setIsProcessing(false);
+			} catch (error) {
+				console.error("Error in step back:", error);
 			}
 		}
 	};
@@ -104,7 +122,6 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 					<div className="flex flex-col space-y-6">
 						{steps.map((step, index) => (
 							<div key={index} className="relative flex gap-4">
-								{/* Icon and line container */}
 								<div className="relative">
 									<div
 										className={cn(
@@ -117,8 +134,6 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 											status={getStepStatus(index)}
 										/>
 									</div>
-
-									{/* Vertical line */}
 									{index !== steps.length - 1 && (
 										<div
 											className={cn(
@@ -130,8 +145,6 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 										/>
 									)}
 								</div>
-
-								{/* Text content */}
 								<div className="flex flex-col pt-1.5">
 									<h3
 										className={cn(
@@ -179,9 +192,13 @@ const Stepper: React.FC<VerticalStepperProps> = ({
 									</Button>
 									<Button
 										onClick={handleNext}
-										disabled={isProcessing}>
+										variant={
+											isProcessing
+												? "destructive"
+												: "default"
+										}>
 										{isProcessing
-											? "Processing..."
+											? "Cancel"
 											: currentStep === steps.length - 1
 											? "Complete"
 											: "Next"}

@@ -38,6 +38,7 @@ interface AllocationResult {
 }
 
 const App = () => {
+	const [currentCommand, setCurrentCommand] = useState<string | null>(null);
 	const [courseData, setCourseData] = useState<CourseData[]>([]);
 	const [studentData, setStudentData] = useState<StudentData[]>([]);
 	const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
@@ -55,6 +56,8 @@ const App = () => {
 		if (isProcessing) return false;
 
 		setIsProcessing(true);
+		const commandId = crypto.randomUUID();
+		setCurrentCommand(commandId);
 
 		try {
 			toast({
@@ -127,6 +130,7 @@ const App = () => {
 				algorithm: selectedAlgorithm,
 				tutorsDataFilePath,
 				coursesDataFilePath,
+				commandId,
 			});
 
 			console.log(result);
@@ -134,7 +138,8 @@ const App = () => {
 			if (typeof result === "object" && result !== null) {
 				const typedResult = result as { data?: AllocationResult };
 				if (typedResult.data) {
-					setAllocationResult(typedResult.data);
+					setIsProcessing(false); // First, stop processing
+					setAllocationResult(typedResult.data); // Then set the result
 					toast({
 						title: "Success",
 						description: "Allocation completed successfully!",
@@ -145,20 +150,49 @@ const App = () => {
 			throw new Error(
 				`Invalid response from ${selectedAlgorithm} algorithm`
 			);
-		} catch (error) {
-			console.error("Error processing data:", error);
-			toast({
-				variant: "destructive",
-				title: "Processing Error",
-				description:
-					error instanceof Error
-						? error.message
-						: "An error occurred while processing the data",
-			});
+		} catch (error: unknown) {
+			if (commandId === currentCommand) {
+				console.error("Error processing data:", error);
+				toast({
+					variant: "destructive",
+					title: "Processing Error",
+					description:
+						error instanceof Error
+							? error.message
+							: "An error occurred while processing the data",
+				});
+			}
 			return false;
 		} finally {
-			setIsProcessing(false);
+			// Only cleanup if this is still the current command
+			if (commandId === currentCommand) {
+				setIsProcessing(false);
+				setCurrentCommand(null);
+			}
 		}
+	};
+
+	const handleCancel = () => {
+		if (isProcessing && currentCommand) {
+			// Send cancellation command to Rust backend
+			invoke("cancel_algorithm", { commandId: currentCommand }).catch(
+				console.error
+			);
+
+			setIsProcessing(false);
+			setCurrentCommand(null);
+			setAllocationResult(null);
+			setSelectedAlgorithm("");
+
+			toast({
+				variant: "default",
+				title: "Processing Cancelled",
+				description: "The allocation process was cancelled.",
+			});
+
+			return true; // Allow return to algorithm selection
+		}
+		return false;
 	};
 
 	const AlgorithmSelectionStep = () => (
@@ -300,7 +334,9 @@ const App = () => {
 	);
 
 	const validateStep = async (stepIndex: number): Promise<boolean> => {
-		if (isProcessing) return false;
+		if (isProcessing) {
+			return handleCancel();
+		}
 
 		switch (stepIndex) {
 			case 0:
@@ -337,8 +373,13 @@ const App = () => {
 					});
 					return false;
 				}
+				// Immediately start processing when moving from algorithm selection
 				processDataWithBackend();
 				return true;
+
+			case 3:
+				// Don't allow manual advancement during processing
+				return !isProcessing;
 
 			default:
 				return true;
@@ -375,17 +416,13 @@ const App = () => {
 			description: "Choose the allocation algorithm",
 			content: <AlgorithmSelectionStep />,
 		},
-		isProcessing
-			? {
-					title: "Processing",
-					description: "Allocating tutors to courses",
-					content: <ProcessingStep />,
-			  }
-			: {
-					title: "Results",
-					description: "View allocation results",
-					content: <ResultsStep />,
-			  },
+		{
+			title: isProcessing ? "Processing" : "Results",
+			description: isProcessing
+				? "Allocating tutors to courses"
+				: "View allocation results",
+			content: isProcessing ? <ProcessingStep /> : <ResultsStep />,
+		},
 	].map((step) => ({ ...step, status: "pending" as StepStatus }));
 
 	return (
@@ -393,6 +430,8 @@ const App = () => {
 			steps={steps}
 			onStepComplete={validateStep}
 			onStepBack={handleStepBack}
+			isProcessing={isProcessing}
+			forceStep={allocationResult && !isProcessing ? 3 : undefined}
 		/>
 	);
 };

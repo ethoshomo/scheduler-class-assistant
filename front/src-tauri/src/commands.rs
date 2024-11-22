@@ -1,6 +1,14 @@
 use serde_json::Value;
+use std::collections::HashSet;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::LazyLock;
+use std::sync::Mutex;
+use tauri::command;
+
+// Track active commands with LazyLock
+static ACTIVE_COMMANDS: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 #[cfg(target_os = "windows")]
 const GENETIC_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
@@ -12,8 +20,19 @@ const GENETIC_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
 #[cfg(target_os = "linux")]
 const SIMPLEX_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/simplex";
 
-#[tauri::command]
+fn get_algorithm_path(algorithm: &str) -> Result<std::path::PathBuf, String> {
+    let binary_path = match algorithm {
+        "genetic" => GENETIC_BINARY_PATH,
+        "simplex" => SIMPLEX_BINARY_PATH,
+        _ => return Err("Invalid algorithm specified".into()),
+    };
+
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(binary_path))
+}
+
+#[command]
 pub async fn run_algorithm(
+    command_id: String,
     algorithm: String,
     tutors_data_file_path: String,
     courses_data_file_path: String,
@@ -42,43 +61,91 @@ pub async fn run_algorithm(
         }
     }
 
-    // Select the appropriate binary based on the algorithm
-    let binary_path = match algorithm.as_str() {
-        "genetic" => GENETIC_BINARY_PATH,
-        "simplex" => SIMPLEX_BINARY_PATH,
-        _ => return Err("Invalid algorithm specified".into()),
-    };
+    // Add command to active set
+    {
+        ACTIVE_COMMANDS
+            .lock()
+            .map_err(|_| "Lock error")?
+            .insert(command_id.clone());
+    }
 
-    // Construct the path to the executable
-    let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join(binary_path);
+    let result = std::thread::spawn(move || {
+        let executable = get_algorithm_path(&algorithm)?;
 
-    // Execute the program with both file paths and capture output
-    let output = Command::new(executable)
-        .arg(&tutors_data_file_path)
-        .arg(&courses_data_file_path)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|e| format!("Failed to execute program: {}", e))?;
+        let mut process = Command::new(executable)
+            .arg(&tutors_data_file_path)
+            .arg(&courses_data_file_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to execute program: {}", e))?;
 
-    // Check if the process succeeded
-    if output.status.success() {
-        // Parse successful output
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        serde_json::from_str(&output_str)
-            .map_err(|e| format!("Failed to parse algorithm output as JSON: {}", e))
-    } else {
-        // Parse error output
-        let error = String::from_utf8_lossy(&output.stderr);
-        match serde_json::from_str::<Value>(&error) {
-            Ok(error_json) => {
-                if let Some(error_msg) = error_json.get("error").and_then(|e| e.as_str()) {
-                    Err(error_msg.to_string())
-                } else {
-                    Err("Unknown error occurred in algorithm".to_string())
+        loop {
+            // Check if command was cancelled
+            let is_active = ACTIVE_COMMANDS
+                .lock()
+                .map_err(|_| "Lock error")?
+                .contains(&command_id);
+
+            if !is_active {
+                process.kill().map_err(|e| e.to_string())?;
+                return Err("Command cancelled".into());
+            }
+
+            // Check if process has completed
+            match process.try_wait().map_err(|e| e.to_string())? {
+                Some(status) => {
+                    // Process completed
+                    let output = process.wait_with_output().map_err(|e| e.to_string())?;
+
+                    // Remove command from active set
+                    ACTIVE_COMMANDS
+                        .lock()
+                        .map_err(|_| "Lock error")?
+                        .remove(&command_id);
+
+                    if status.success() {
+                        // Parse successful output
+                        let output_str = String::from_utf8_lossy(&output.stdout);
+                        return serde_json::from_str(&output_str).map_err(|e| {
+                            format!("Failed to parse algorithm output as JSON: {}", e)
+                        });
+                    } else {
+                        // Parse error output
+                        let error = String::from_utf8_lossy(&output.stderr);
+                        match serde_json::from_str::<Value>(&error) {
+                            Ok(error_json) => {
+                                if let Some(error_msg) =
+                                    error_json.get("error").and_then(|e| e.as_str())
+                                {
+                                    return Err(error_msg.to_string());
+                                } else {
+                                    return Err("Unknown error occurred in algorithm".to_string());
+                                }
+                            }
+                            Err(_) => return Err(error.to_string()),
+                        }
+                    }
+                }
+                None => {
+                    // Process still running
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    continue;
                 }
             }
-            Err(_) => Err(error.to_string()),
         }
-    }
+    })
+    .join()
+    .map_err(|_| "Thread panic occurred".to_string())??;
+
+    Ok(result)
+}
+
+#[command]
+pub async fn cancel_algorithm(command_id: String) -> Result<(), String> {
+    ACTIVE_COMMANDS
+        .lock()
+        .map_err(|_| "Lock error")?
+        .remove(&command_id);
+    Ok(())
 }

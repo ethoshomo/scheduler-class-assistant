@@ -7,7 +7,10 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![commands::run_algorithm])
+        .invoke_handler(tauri::generate_handler![
+            commands::run_algorithm,
+            commands::cancel_algorithm
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
