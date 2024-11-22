@@ -42,6 +42,16 @@
 						"name": "genetic",
 						"cmd": "binaries/{{target}}/genetic",
 						"args": true
+					},
+					{
+						"name": "simplex",
+						"cmd": "binaries/{{target}}/simplex",
+						"args": true
+					},
+					{
+						"name": "cbc",
+						"cmd": "binaries/{{target}}/cbc",
+						"args": true
 					}
 				]
 			}

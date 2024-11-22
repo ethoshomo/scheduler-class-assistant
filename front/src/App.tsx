@@ -55,112 +55,96 @@ const App = () => {
 		if (isProcessing) return false;
 
 		setIsProcessing(true);
+
 		try {
 			toast({
 				title: "Processing Data",
 				description: "Starting allocation process...",
 			});
 
-			if (selectedAlgorithm === "genetic") {
-				// Prepare student data for the genetic algorithm
-				const processedStudentData = studentData.map((student) => ({
-					"Student ID": parseInt(student.studentId),
-					"Course Name": student.course,
-					Grade: student.grade,
-					Preference: student.preference,
-				}));
+			// Prepare student data
+			const processedStudentData = studentData.map((student) => ({
+				"Student ID": parseInt(student.studentId),
+				"Course Name": student.course,
+				Grade: student.grade,
+				Preference: student.preference,
+			}));
 
-				// Create workbook for student data
-				const studentWs =
-					XLSX.utils.json_to_sheet(processedStudentData);
-				const studentWb = XLSX.utils.book_new();
-				XLSX.utils.book_append_sheet(studentWb, studentWs, "Data");
+			// Create workbook for student data
+			const studentWs = XLSX.utils.json_to_sheet(processedStudentData);
+			const studentWb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(studentWb, studentWs, "Data");
 
-				// Convert to array buffer
-				const studentWbout = XLSX.write(studentWb, {
-					bookType: "xlsx",
-					type: "array",
-				});
-				const studentBuffer = new Uint8Array(studentWbout);
+			// Convert to array buffer
+			const studentWbout = XLSX.write(studentWb, {
+				bookType: "xlsx",
+				type: "array",
+			});
+			const studentBuffer = new Uint8Array(studentWbout);
 
-				// Prepare course data
-				const processedCourseData = courseData.map((course) => ({
-					"Course Name": course.course,
-					"Number of Classes": course.classes,
-				}));
+			// Prepare course data
+			const processedCourseData = courseData.map((course) => ({
+				"Course Name": course.course,
+				"Number of Classes": course.classes,
+			}));
 
-				// Create workbook for course data
-				const courseWs = XLSX.utils.json_to_sheet(processedCourseData);
-				const courseWb = XLSX.utils.book_new();
-				XLSX.utils.book_append_sheet(courseWb, courseWs, "Data");
+			// Create workbook for course data
+			const courseWs = XLSX.utils.json_to_sheet(processedCourseData);
+			const courseWb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(courseWb, courseWs, "Data");
 
-				// Convert to array buffer
-				const courseWbout = XLSX.write(courseWb, {
-					bookType: "xlsx",
-					type: "array",
-				});
-				const courseBuffer = new Uint8Array(courseWbout);
+			// Convert to array buffer
+			const courseWbout = XLSX.write(courseWb, {
+				bookType: "xlsx",
+				type: "array",
+			});
+			const courseBuffer = new Uint8Array(courseWbout);
 
-				// Ensure directory exists
-				await mkdir("", {
-					baseDir: BaseDirectory.AppConfig,
-					recursive: true,
-				});
+			// Ensure directory exists
+			await mkdir("", {
+				baseDir: BaseDirectory.AppConfig,
+				recursive: true,
+			});
 
-				// Write student data file
-				const studentFilename = "temp_student_data.xlsx";
-				await writeFile(studentFilename, studentBuffer, {
-					baseDir: BaseDirectory.AppConfig,
-				});
+			// Write student data file
+			const studentFilename = "temp_student_data.xlsx";
+			await writeFile(studentFilename, studentBuffer, {
+				baseDir: BaseDirectory.AppConfig,
+			});
 
-				// Write course data file
-				const courseFilename = "temp_course_data.xlsx";
-				await writeFile(courseFilename, courseBuffer, {
-					baseDir: BaseDirectory.AppConfig,
-				});
+			// Write course data file
+			const courseFilename = "temp_course_data.xlsx";
+			await writeFile(courseFilename, courseBuffer, {
+				baseDir: BaseDirectory.AppConfig,
+			});
 
-				// Get the absolute file paths
-				const configDir = await appConfigDir();
-				const tutorsDataFilePath = await join(
-					configDir,
-					studentFilename
-				);
-				const coursesDataFilePath = await join(
-					configDir,
-					courseFilename
-				);
+			// Get the absolute file paths
+			const configDir = await appConfigDir();
+			const tutorsDataFilePath = await join(configDir, studentFilename);
+			const coursesDataFilePath = await join(configDir, courseFilename);
 
-				// Process with genetic algorithm
-				const result = await invoke("run_genetic", {
-					tutorsDataFilePath,
-					coursesDataFilePath,
-				});
+			const result = await invoke("run_algorithm", {
+				algorithm: selectedAlgorithm,
+				tutorsDataFilePath,
+				coursesDataFilePath,
+			});
 
-				console.log(result);
+			console.log(result);
 
-				if (typeof result === "object" && result !== null) {
-					const typedResult = result as { data?: AllocationResult };
-					if (typedResult.data) {
-						setAllocationResult(typedResult.data);
-						toast({
-							title: "Success",
-							description: "Allocation completed successfully!",
-						});
-						return true;
-					}
+			if (typeof result === "object" && result !== null) {
+				const typedResult = result as { data?: AllocationResult };
+				if (typedResult.data) {
+					setAllocationResult(typedResult.data);
+					toast({
+						title: "Success",
+						description: "Allocation completed successfully!",
+					});
+					return true;
 				}
-				throw new Error("Invalid response from genetic algorithm");
-			} else if (selectedAlgorithm === "simplex") {
-				// Implement simplex algorithm processing here if needed
-				toast({
-					variant: "destructive",
-					title: "Not Implemented",
-					description: "Simplex algorithm is not yet implemented.",
-				});
-				return false;
 			}
-
-			return false;
+			throw new Error(
+				`Invalid response from ${selectedAlgorithm} algorithm`
+			);
 		} catch (error) {
 			console.error("Error processing data:", error);
 			toast({

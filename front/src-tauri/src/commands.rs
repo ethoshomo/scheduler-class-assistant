@@ -3,13 +3,18 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 #[cfg(target_os = "windows")]
-const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
+const GENETIC_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
+#[cfg(target_os = "windows")]
+const SIMPLEX_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/simplex.exe";
 
 #[cfg(target_os = "linux")]
-const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
+const GENETIC_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
+#[cfg(target_os = "linux")]
+const SIMPLEX_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/simplex";
 
 #[tauri::command]
-pub async fn run_genetic(
+pub async fn run_algorithm(
+    algorithm: String,
     tutors_data_file_path: String,
     courses_data_file_path: String,
 ) -> Result<Value, String> {
@@ -37,8 +42,15 @@ pub async fn run_genetic(
         }
     }
 
+    // Select the appropriate binary based on the algorithm
+    let binary_path = match algorithm.as_str() {
+        "genetic" => GENETIC_BINARY_PATH,
+        "simplex" => SIMPLEX_BINARY_PATH,
+        _ => return Err("Invalid algorithm specified".into()),
+    };
+
     // Construct the path to the executable
-    let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join(BINARY_PATH);
+    let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join(binary_path);
 
     // Execute the program with both file paths and capture output
     let output = Command::new(executable)
@@ -54,7 +66,7 @@ pub async fn run_genetic(
         // Parse successful output
         let output_str = String::from_utf8_lossy(&output.stdout);
         serde_json::from_str(&output_str)
-            .map_err(|e| format!("Failed to parse genetic output as JSON: {}", e))
+            .map_err(|e| format!("Failed to parse algorithm output as JSON: {}", e))
     } else {
         // Parse error output
         let error = String::from_utf8_lossy(&output.stderr);
@@ -63,7 +75,7 @@ pub async fn run_genetic(
                 if let Some(error_msg) = error_json.get("error").and_then(|e| e.as_str()) {
                     Err(error_msg.to_string())
                 } else {
-                    Err("Unknown error occurred in genetic".to_string())
+                    Err("Unknown error occurred in algorithm".to_string())
                 }
             }
             Err(_) => Err(error.to_string()),
