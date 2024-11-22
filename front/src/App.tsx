@@ -62,25 +62,44 @@ const App = () => {
 			});
 
 			if (selectedAlgorithm === "genetic") {
-				// Prepare data for the genetic algorithm
-				const processedData = studentData.map((student) => ({
+				// Prepare student data for the genetic algorithm
+				const processedStudentData = studentData.map((student) => ({
 					"Student ID": parseInt(student.studentId),
 					"Course Name": student.course,
 					Grade: student.grade,
 					Preference: student.preference,
 				}));
 
-				// Create workbook
-				const ws = XLSX.utils.json_to_sheet(processedData);
-				const wb = XLSX.utils.book_new();
-				XLSX.utils.book_append_sheet(wb, ws, "Data");
+				// Create workbook for student data
+				const studentWs =
+					XLSX.utils.json_to_sheet(processedStudentData);
+				const studentWb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(studentWb, studentWs, "Data");
 
 				// Convert to array buffer
-				const wbout = XLSX.write(wb, {
+				const studentWbout = XLSX.write(studentWb, {
 					bookType: "xlsx",
 					type: "array",
 				});
-				const buffer = new Uint8Array(wbout);
+				const studentBuffer = new Uint8Array(studentWbout);
+
+				// Prepare course data
+				const processedCourseData = courseData.map((course) => ({
+					"Course Name": course.course,
+					"Number of Classes": course.classes,
+				}));
+
+				// Create workbook for course data
+				const courseWs = XLSX.utils.json_to_sheet(processedCourseData);
+				const courseWb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(courseWb, courseWs, "Data");
+
+				// Convert to array buffer
+				const courseWbout = XLSX.write(courseWb, {
+					bookType: "xlsx",
+					type: "array",
+				});
+				const courseBuffer = new Uint8Array(courseWbout);
 
 				// Ensure directory exists
 				await mkdir("", {
@@ -88,20 +107,33 @@ const App = () => {
 					recursive: true,
 				});
 
-				const filename = "temp_data.xlsx";
-
-				// Write file
-				await writeFile(filename, buffer, {
+				// Write student data file
+				const studentFilename = "temp_student_data.xlsx";
+				await writeFile(studentFilename, studentBuffer, {
 					baseDir: BaseDirectory.AppConfig,
 				});
 
-				// Get the absolute file path
+				// Write course data file
+				const courseFilename = "temp_course_data.xlsx";
+				await writeFile(courseFilename, courseBuffer, {
+					baseDir: BaseDirectory.AppConfig,
+				});
+
+				// Get the absolute file paths
 				const configDir = await appConfigDir();
-				const filePath = await join(configDir, filename);
+				const tutorsDataFilePath = await join(
+					configDir,
+					studentFilename
+				);
+				const coursesDataFilePath = await join(
+					configDir,
+					courseFilename
+				);
 
 				// Process with genetic algorithm
 				const result = await invoke("run_genetic", {
-					filePath: filePath,
+					tutorsDataFilePath,
+					coursesDataFilePath,
 				});
 
 				console.log(result);

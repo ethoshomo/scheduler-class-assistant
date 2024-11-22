@@ -9,29 +9,41 @@ const BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
 const BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
 
 #[tauri::command]
-pub async fn run_genetic(file_path: String) -> Result<Value, String> {
-    // Verify file exists and has correct extension
-    let path = Path::new(&file_path);
-    if !path.exists() {
-        return Err("File does not exist".into());
+pub async fn run_genetic(
+    tutors_data_file_path: String,
+    courses_data_file_path: String,
+) -> Result<Value, String> {
+    // Verify tutors file exists and has correct extension
+    let tutors_path = Path::new(&tutors_data_file_path);
+    if !tutors_path.exists() {
+        return Err("Tutors file does not exist".into());
+    }
+
+    // Verify courses file exists
+    let courses_path = Path::new(&courses_data_file_path);
+    if !courses_path.exists() {
+        return Err("Courses file does not exist".into());
     }
 
     // Check for valid extensions
-    let extension = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .ok_or("File has no extension")?;
+    for path in [tutors_path, courses_path] {
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .ok_or("File has no extension")?;
 
-    if extension != "xlsx" {
-        return Err("File must be an XLSX file".into());
+        if extension != "xlsx" {
+            return Err("Files must be XLSX files".into());
+        }
     }
 
     // Construct the path to the executable
     let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join(BINARY_PATH);
 
-    // Execute the program and capture output directly
+    // Execute the program with both file paths and capture output
     let output = Command::new(executable)
-        .arg(&file_path)
+        .arg(&tutors_data_file_path)
+        .arg(&courses_data_file_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
