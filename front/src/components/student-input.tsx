@@ -30,11 +30,10 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-interface StudentData {
+export interface StudentData {
 	id: string;
 	studentId: string;
 	course: string;
-	classNumber: number;
 	grade: number;
 	preference: number;
 }
@@ -45,26 +44,18 @@ interface StudentInputProps {
 	onDataChange: (data: StudentData[]) => void;
 }
 
-const REQUIRED_COLUMNS = [
-	"Student ID",
-	"Course Name",
-	"Class Number",
-	"Grade",
-	"Preference",
-];
+const REQUIRED_COLUMNS = ["Student ID", "Course Name", "Grade", "Preference"];
 
 const templateData = [
 	{
 		"Student ID": "10101010",
 		"Course Name": "SMA0300 - Geometria Analítica",
-		"Class Number": 1,
 		Grade: 7.5,
 		Preference: 2,
 	},
 	{
 		"Student ID": "10101010",
 		"Course Name": "SMA0353 - Cálculo I",
-		"Class Number": 2,
 		Grade: 8,
 		Preference: 1,
 	},
@@ -73,7 +64,6 @@ const templateData = [
 const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	const [newStudentId, setNewStudentId] = useState("");
 	const [newCourse, setNewCourse] = useState("");
-	const [newClassNumber, setNewClassNumber] = useState("");
 	const [newGrade, setNewGrade] = useState("");
 	const [newPreference, setNewPreference] = useState("");
 	const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -86,7 +76,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 	);
 	const [editStudentId, setEditStudentId] = useState("");
 	const [editCourse, setEditCourse] = useState("");
-	const [editClassNumber, setEditClassNumber] = useState("");
 	const [editGrade, setEditGrade] = useState("");
 	const [editPreference, setEditPreference] = useState("");
 
@@ -94,7 +83,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		onDataChange([]);
 		setNewStudentId("");
 		setNewCourse("");
-		setNewClassNumber("");
 		setNewGrade("");
 		setNewPreference("");
 		setIsClearDialogOpen(false);
@@ -119,10 +107,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			return "Invalid course selected";
 		}
 
-		if (student.classNumber < 1 || student.classNumber > course.classes) {
-			return `Class number must be between 1 and ${course.classes} for this course`;
-		}
-
 		if (student.grade < 0 || student.grade > 10) {
 			return "Grade must be between 0 and 10";
 		}
@@ -135,7 +119,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			(entry) =>
 				entry.studentId === student.studentId &&
 				entry.course === student.course &&
-				entry.classNumber === student.classNumber &&
 				(!isEdit || entry.id !== editingId)
 		);
 
@@ -150,7 +133,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		setEditingStudent(studentData);
 		setEditStudentId(studentData.studentId);
 		setEditCourse(studentData.course);
-		setEditClassNumber(studentData.classNumber.toString());
 		setEditGrade(studentData.grade.toString());
 		setEditPreference(studentData.preference.toString());
 		setIsEditDialogOpen(true);
@@ -162,7 +144,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		const newStudentData = {
 			studentId: editStudentId,
 			course: editCourse,
-			classNumber: Number(editClassNumber),
 			grade: Number(editGrade),
 			preference: Number(editPreference),
 		};
@@ -212,10 +193,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			header: "Course Name",
 		},
 		{
-			accessorKey: "classNumber",
-			header: "Class Number",
-		},
-		{
 			accessorKey: "grade",
 			header: "Grade",
 		},
@@ -252,7 +229,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		const newStudentData = {
 			studentId: newStudentId,
 			course: newCourse,
-			classNumber: Number(newClassNumber),
 			grade: Number(newGrade),
 			preference: Number(newPreference),
 		};
@@ -278,7 +254,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 		// Reset form
 		setNewStudentId("");
 		setNewCourse("");
-		setNewClassNumber("");
 		setNewGrade("");
 		setNewPreference("");
 	};
@@ -342,20 +317,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 				return;
 			}
 			studentCourses.add(studentCourseKey);
-
-			// Check Class Number
-			const classNumber = Number(row["Class Number"]);
-			const course = courses.find((c) => c.course === courseName);
-			if (
-				!course ||
-				isNaN(classNumber) ||
-				classNumber < 1 ||
-				classNumber > course.classes
-			) {
-				errors.push(
-					`Row ${rowNumber}: Invalid Class Number for the course`
-				);
-			}
 
 			// Check Grade
 			const grade = Number(row["Grade"]);
@@ -440,7 +401,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 						id: crypto.randomUUID(),
 						studentId: row["Student ID"],
 						course: row["Course Name"],
-						classNumber: Number(row["Class Number"]),
 						grade: Number(row["Grade"]),
 						preference: Number(row["Preference"]),
 					}));
@@ -469,7 +429,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 						id: crypto.randomUUID(),
 						studentId: String((row as any)["Student ID"]),
 						course: (row as any)["Course Name"],
-						classNumber: Number((row as any)["Class Number"]),
 						grade: Number((row as any)["Grade"]),
 						preference: Number((row as any)["Preference"]),
 					}));
@@ -571,11 +530,15 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 			<div
 				{...getRootProps()}
 				className={`
-          p-6 border-2 border-dashed rounded-lg 
-          transition-colors duration-200 ease-in-out
-          flex flex-col items-center justify-center
-          ${isDragActive ? "border-primary bg-primary/5" : "border-border"}
-        `}>
+                    p-6 border-2 border-dashed rounded-lg 
+                    transition-colors duration-200 ease-in-out
+                    flex flex-col items-center justify-center
+                    ${
+						isDragActive
+							? "border-primary bg-primary/5"
+							: "border-border"
+					}
+                `}>
 				<input {...getInputProps()} />
 				<Upload className="w-8 h-8 mb-4 text-muted-foreground" />
 				<p className="text-sm text-muted-foreground text-center">
@@ -608,14 +571,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					</SelectContent>
 				</Select>
 				<Input
-					placeholder="Class Number"
-					type="number"
-					min="1"
-					value={newClassNumber}
-					onChange={(e) => setNewClassNumber(e.target.value)}
-					className="w-32 min-w-[120px]"
-				/>
-				<Input
 					placeholder="Grade"
 					type="number"
 					step="0.1"
@@ -638,7 +593,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 					disabled={
 						!newStudentId ||
 						!newCourse ||
-						!newClassNumber ||
 						!newGrade ||
 						!newPreference
 					}
@@ -697,23 +651,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 							</Select>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
-							<label
-								htmlFor="editClassNumber"
-								className="text-right">
-								Class Number
-							</label>
-							<Input
-								id="editClassNumber"
-								type="number"
-								min="1"
-								value={editClassNumber}
-								onChange={(e) =>
-									setEditClassNumber(e.target.value)
-								}
-								className="col-span-3"
-							/>
-						</div>
-						<div className="grid grid-cols-4 items-center gap-4">
 							<label htmlFor="editGrade" className="text-right">
 								Grade
 							</label>
@@ -757,7 +694,6 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 							disabled={
 								!editStudentId ||
 								!editCourse ||
-								!editClassNumber ||
 								!editGrade ||
 								!editPreference
 							}>

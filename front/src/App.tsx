@@ -15,28 +15,13 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import Stepper, { StepStatus } from "./components/widgets/stepper";
-import CourseInput from "./components/course-input";
-import StudentInput from "./components/student-input";
+import CourseInput, { CourseData } from "./components/course-input";
+import StudentInput, { StudentData } from "./components/student-input";
 import { useToast } from "@/hooks/use-toast";
 import { invoke } from "@tauri-apps/api/core";
 import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import * as XLSX from "xlsx";
-
-interface CourseData {
-	id: string;
-	course: string;
-	classes: number;
-}
-
-interface StudentData {
-	id: string;
-	studentId: string;
-	course: string;
-	classNumber: number;
-	grade: number;
-	preference: number;
-}
 
 interface AllocationResult {
 	metrics: {
@@ -81,7 +66,6 @@ const App = () => {
 				const processedData = studentData.map((student) => ({
 					"Student ID": parseInt(student.studentId),
 					"Course Name": student.course,
-					"Class Number": student.classNumber,
 					Grade: student.grade,
 					Preference: student.preference,
 				}));
