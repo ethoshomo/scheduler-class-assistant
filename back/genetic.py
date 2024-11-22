@@ -197,7 +197,6 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd
     for _, row in df_courses.iterrows():
         course = row['Course Name']
         n = row['Number of Classes']
-
         for i in range(n):
             courses.append(f'{course} - Class {i + 1}')
 
@@ -220,16 +219,18 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
 
+    df = pd.merge(df, df_courses, on='Course Name', how='left')
+
     df = df.loc[df.index.repeat(df['Number of Classes'])].reset_index(drop=True)
 
     # Adicionando um contador para cada grupo de 'nome'
     df['class_number'] = df.groupby('Course Name').cumcount() + 1
 
     # Alterando a coluna 'nome' para incluir o contador
-    df['Couse Name'] = df['Course Name'] + '- Class ' + df['class_number'].astype(str)
+    df['Course Name'] = df['Course Name'] + ' - Class ' + df['class_number'].astype(str)
 
     # Removendo a coluna auxiliar 'contador', se necessário
-    df_replicado = df_replicado.drop(columns='contador')
+    df = df.drop(columns='class_number')
 
     candidates = [i.item() for i in df["Student ID"].unique()]
 
