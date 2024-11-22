@@ -47,20 +47,24 @@ const App = () => {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [allocationResult, setAllocationResult] =
 		useState<AllocationResult | null>(null);
+	const [stepperKey, setStepperKey] = useState(0);
 	const { toast } = useToast();
 
 	const handleStartOver = () => {
+		// Clear all data
 		setCourseData([]);
 		setStudentData([]);
 		setSelectedAlgorithm("");
 		setAllocationResult(null);
 		setIsProcessing(false);
 		setCurrentCommand(null);
+		// Increment the key to force a complete Stepper reset
+		setStepperKey((prev) => prev + 1);
+
 		toast({
 			title: "Reset Complete",
 			description: "All data has been cleared. You can start over.",
 		});
-		return true;
 	};
 
 	const handleExit = async () => {
@@ -471,6 +475,7 @@ const App = () => {
 
 	return (
 		<Stepper
+			key={stepperKey}
 			steps={steps}
 			onStepComplete={validateStep}
 			onStepBack={handleStepBack}
