@@ -201,9 +201,6 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
     if "Course Name" not in df.columns:
         raise Exception('Column "Course Name" is required in the tutors table!')
 
-    if "Class Number" not in df.columns:
-        raise Exception('Column "Class Number" is required in the tutors table!')
-
     if "Grade" not in df.columns:
         raise Exception('Column "Grade" is required in the tutors table!')
 
@@ -211,8 +208,6 @@ def process_file(file_path: str, excel_flag: bool) -> pd.DataFrame:
         raise Exception('Column "Preference" is required in the tutors table!')
 
     df = df[["Student ID", "Course Name", "Class Number", "Grade", "Preference"]]
-
-    df["Course Name"] = df["Course Name"] + " - Class " + df["Class Number"].astype(str)
 
     courses = list(df["Course Name"].unique())
     candidates = [i.item() for i in df["Student ID"].unique()]
