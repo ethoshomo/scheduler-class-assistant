@@ -189,7 +189,18 @@ def run(courses, candidates, preferences, da):
     return metrics, result_rows
 
 
-def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.DataFrame:
+def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd.DataFrame:
+    df_courses = pd.read_excel(courses_excel_path)
+
+    courses = []
+
+    for _, row in df_courses.iterrows():
+        course = row['Course Name']
+        n = row['Number of Classes']
+
+        for i in range(n):
+            courses.append(f'{course} - Class {i + 1}')
+
     if excel_flag:
         df = pd.read_excel(file_path)
     else:
@@ -208,6 +219,17 @@ def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.Data
         raise Exception('Column "Preference" is required in the tutors table!')
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
+
+    df = df.loc[df.index.repeat(df['Number of Classes'])].reset_index(drop=True)
+
+    # Adicionando um contador para cada grupo de 'nome'
+    df['class_number'] = df.groupby('Course Name').cumcount() + 1
+
+    # Alterando a coluna 'nome' para incluir o contador
+    df['Couse Name'] = df['Course Name'] + '- Class ' + df['class_number'].astype(str)
+
+    # Removendo a coluna auxiliar 'contador', se necessário
+    df_replicado = df_replicado.drop(columns='contador')
 
     candidates = [i.item() for i in df["Student ID"].unique()]
 
@@ -229,21 +251,7 @@ def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.Data
             if row["Course Name"] == course
         ]
 
-    return candidates, preferences, da
-
-def read_courses_excel(excel_path:str):
-    df_courses = pd.read_excel(excel_path)
-
-    courses = []
-
-    for _, row in df_courses.iterrows():
-        course = row['Course Name']
-        n = row['Number of Classes']
-
-        for i in range(n):
-            courses.append(f'{course} - Turma {i + 1}')
-
-    return courses
+    return courses, candidates, preferences, da
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
@@ -252,14 +260,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        excel_path = sys.argv[1]
-        courses = read_courses_excel(sys.argv[2])
+        students_excel_path = sys.argv[1]
+        courses_excel_path = sys.argv[2]
 
         excel_flag = True
-        if excel_path.endswith(".csv"):
+        if students_excel_path.endswith(".csv"):
             excel_flag = False
 
-        candidates, preferences, da = process_file(excel_path, courses, excel_flag)
+        courses, candidates, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag)
         metrics, result_rows = run(courses, candidates, preferences, da)
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
