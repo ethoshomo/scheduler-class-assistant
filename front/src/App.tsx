@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-	Card,
 	CardHeader,
 	CardTitle,
 	CardContent,
@@ -24,20 +23,7 @@ import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import * as XLSX from "xlsx";
 import { Button } from "./components/ui/button";
-
-interface AllocationResult {
-	metrics: {
-		best_individual: number[];
-		number_classes: number;
-		satisfaction: number;
-	};
-	results: {
-		class: string;
-		student: string;
-		grade: number;
-		preference: Record<string, number>;
-	}[];
-}
+import ResultsStep, { AllocationResult } from "./components/steps/ResultsStep";
 
 const App = () => {
 	const [currentCommand, setCurrentCommand] = useState<string | null>(null);
@@ -274,99 +260,6 @@ const App = () => {
 		</div>
 	);
 
-	const ResultsStep = () => (
-		<div className="space-y-6">
-			<CardHeader>
-				<CardTitle>Allocation Results</CardTitle>
-				<CardDescription>
-					Results using{" "}
-					{selectedAlgorithm === "simplex" ? "Simplex" : "Genetic"}{" "}
-					Algorithm
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				{allocationResult && (
-					<div className="space-y-6">
-						<Card>
-							<CardHeader>
-								<CardTitle>Summary Metrics</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<dl className="grid grid-cols-3 gap-4">
-									<div>
-										<dt className="text-sm font-medium text-muted-foreground">
-											Classes Allocated
-										</dt>
-										<dd className="text-2xl font-bold">
-											{
-												allocationResult.metrics
-													.number_classes
-											}
-										</dd>
-									</div>
-									<div>
-										<dt className="text-sm font-medium text-muted-foreground">
-											Satisfaction Score
-										</dt>
-										<dd className="text-2xl font-bold">
-											{(
-												allocationResult.metrics
-													.satisfaction * 100
-											).toFixed(1)}
-											%
-										</dd>
-									</div>
-								</dl>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>Allocation Details</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="border rounded-lg divide-y">
-									{allocationResult.results.map(
-										(result, index) => (
-											<div key={index} className="p-4">
-												<div className="grid grid-cols-2 gap-4">
-													<div>
-														<p className="text-sm font-medium">
-															Course
-														</p>
-														<p className="text-muted-foreground">
-															{result.class}
-														</p>
-													</div>
-													<div>
-														<p className="text-sm font-medium">
-															Assigned Tutor
-														</p>
-														<p className="text-muted-foreground">
-															{result.student}
-														</p>
-													</div>
-													<div>
-														<p className="text-sm font-medium">
-															Grade
-														</p>
-														<p className="text-muted-foreground">
-															{result.grade}
-														</p>
-													</div>
-												</div>
-											</div>
-										)
-									)}
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				)}
-			</CardContent>
-		</div>
-	);
-
 	const validateStep = async (stepIndex: number): Promise<boolean> => {
 		if (isProcessing) {
 			return handleCancel();
@@ -455,7 +348,7 @@ const App = () => {
 			description: isProcessing
 				? "Allocating tutors to courses"
 				: "View allocation results",
-			content: isProcessing ? <ProcessingStep /> : <ResultsStep />,
+			content: isProcessing ? <ProcessingStep /> : <ResultsStep allocationResult={allocationResult} selectedAlgorithm={selectedAlgorithm} />,
 			actions:
 				allocationResult && !isProcessing ? (
 					<div className="flex justify-between w-full">
