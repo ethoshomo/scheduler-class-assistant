@@ -3,7 +3,17 @@ from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary, PULP_CBC_CM
 import sys
 import json
 
-def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.DataFrame:
+def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd.DataFrame:
+    df_courses = pd.read_excel(courses_excel_path)
+
+    courses = []
+
+    for _, row in df_courses.iterrows():
+        course = row['Course Name']
+        n = row['Number of Classes']
+        for i in range(n):
+            courses.append(f'{course} - Class {i + 1}')
+
     if excel_flag:
         df = pd.read_excel(file_path)
     else:
@@ -21,7 +31,20 @@ def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.Data
     if "Preference" not in df.columns:
         raise Exception('Column "Preference" is required in the tutors table!')
 
-    df = df[["Student ID", "Course Name", "Class Number", "Grade", "Preference"]]
+    df = df[["Student ID", "Course Name", "Grade", "Preference"]]
+
+    df = pd.merge(df, df_courses, on='Course Name', how='left')
+
+    df = df.loc[df.index.repeat(df['Number of Classes'])].reset_index(drop=True)
+
+    # Adicionando um contador para cada grupo de 'nome'
+    df['class_number'] = df.groupby('Course Name').cumcount() + 1
+
+    # Alterando a coluna 'nome' para incluir o contador
+    df['Course Name'] = df['Course Name'] + ' - Class ' + df['class_number'].astype(str)
+
+    # Removendo a coluna auxiliar 'contador', se necessário
+    df = df.drop(columns='class_number')
 
     candidates = [i.item() for i in df["Student ID"].unique()]
 
@@ -47,7 +70,7 @@ def process_file(file_path: str, courses:list[str], excel_flag: bool) -> pd.Data
                 course_candidates[(candidate, course)] = 0
 
 
-    return candidates, preferences, avarage_grades, course_candidates
+    return courses, candidates, preferences, avarage_grades, course_candidates
 
 def run(courses, candidates, preferences, avarage_grades, course_candidates):
     modelo = LpProblem("Alocacao_de_Monitores", LpMaximize)
@@ -121,20 +144,6 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
 
     return metrics, result_rows
 
-def read_courses_excel(excel_path:str):
-    df_courses = pd.read_excel(excel_path)
-
-    courses = []
-
-    for _, row in df_courses.iterrows():
-        course = row['Course Name']
-        n = row['Number of Classes']
-
-        for i in range(n):
-            courses.append(f'{course} - Turma {i + 1}')
-
-    return courses
-
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         result = {"success": False, "error": "No file path provided"}
@@ -142,14 +151,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        excel_path = sys.argv[1]
-        courses = read_courses_excel(sys.argv[2])
+        students_excel_path = sys.argv[1]
+        courses_excel_path = sys.argv[2]
 
         excel_flag = True
-        if excel_path.endswith(".csv"):
+        if students_excel_path.endswith(".csv"):
             excel_flag = False
 
-        candidates, preferences, avarage_grades, course_candidates = process_file(excel_path, courses, excel_flag)
+        courses, candidates, preferences, avarage_grades, course_candidates = process_file(students_excel_path, courses_excel_path, excel_flag)
         metrics, result_rows = run(courses, candidates, preferences, avarage_grades, course_candidates)
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
