@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import pandas as pd
-from deap import base, creator, tools
+from deap import base, creator, tools, algorithms
 import pandas as pd
 from multiprocessing import *
 import sys
@@ -9,12 +9,6 @@ import json
 
 
 def create_individual(d, da):
-    """
-    Individuals are created as a list of courses,
-    where each value is the student ID of the candidate. If the number
-    of candidates is less than the number of courses, zeroes will be filled
-    until the total number of courses is reached.
-    """
     i = [0] * len(d)
     chosen = set()
     d_random = d.copy()
@@ -33,11 +27,6 @@ def create_individual(d, da):
 
 
 def count_rooms(i, d, p):
-    """
-    During evolution, tutors may be assigned to incorrect rooms.
-    Therefore, we need to check if they have training in the course.
-    The number of rooms reflects the correct assignments.
-    """
     check = []
     for index, value in enumerate(i):
         if value == 0:
@@ -47,11 +36,12 @@ def count_rooms(i, d, p):
 
 
 def measure_satisfaction(i, d, p):
-    """
-    The satisfaction of the tutor set was modeled using an
-    exponential function, which assigns higher value for preference 1
-    and lower value for the last course.
-    """
+    
+    distinct_values_1 = set(v for v in i if v != 0)
+    distinct_values_2 = list(v for v in i if v != 0)
+    if len(distinct_values_1) != len(distinct_values_2):
+        return 0.0
+    
     preferences = []
     for index, value in enumerate(i):
         options = p.get(value, {})
@@ -63,30 +53,23 @@ def measure_satisfaction(i, d, p):
 
 
 def evaluate_individual(i, d, p):
-    """
-    Individual evaluation is a distance function from the origin.
-    In this case, we have the number of rooms on the X axis and the satisfaction
-    of the tutor set on the Y axis. The goal is to increase values in X and Y.
-    Therefore, the higher the value, the better the result. Weight is assigned
-    to rooms because this criterion should prevail over tutor satisfaction.
-    """
     rooms = len(i) * count_rooms(i, d, p)
     interests = measure_satisfaction(i, d, p)
     return (np.linalg.norm([rooms, interests]),)
 
 
-def do_the_scheduled(courses, candidates, preferences, da, results):
-    """
-    Parallelized function that receives processing data and starts a
-    genetic algorithm for heuristic search. Each generation will create
-    2000 individuals, and at the end, 10% of the most adapted population
-    (best evaluated) will be preserved. In 20% of individuals, there will be
-    random mutations, understood as shuffling of individual elements (aiming
-    to explore the search space).
-    """
+def selection_elitism(population, n_individuals):
+    elitism = int(0.2 * len(population))  # 20% da população como elitistas
+    elite = tools.selBest(population, elitism)
+    rest = tools.selTournament(population, n_individuals - elitism, tournsize=3)
+    return elite + rest
+
+
+def do_the_scheduled(courses, preferences, da):
     population_size = 1000
-    n_generations = 200
-    preservation = 0.2
+    n_generations = 50
+    mutation_probability = 0.2
+    crossover_probability = 0.7
 
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
@@ -98,69 +81,63 @@ def do_the_scheduled(courses, candidates, preferences, da, results):
         creator.Individual,
         lambda: create_individual(courses, da),
     )
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
     toolbox.register(
-        "evaluate", lambda ind: evaluate_individual(ind, courses, preferences)
+        "population", 
+        tools.initRepeat, 
+        list, 
+        toolbox.individual
     )
-    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.2)
-    toolbox.register("select", tools.selBest)
+
+    toolbox.register(
+        "evaluate", 
+        lambda ind: evaluate_individual(ind, courses, preferences)
+    )
+
+    toolbox.register(
+        "mate", 
+        tools.cxTwoPoint
+    )
+
+    toolbox.register(
+        "mutate", 
+        tools.mutShuffleIndexes, 
+        indpb=mutation_probability
+    )
+
+    toolbox.register(
+        "select", 
+        selection_elitism
+    )
 
     pop = toolbox.population(n=population_size)
 
-    for _ in range(n_generations):
-        for ind in pop:
-            if not ind.fitness.valid:
-                ind.fitness.values = toolbox.evaluate(ind)
+    # Avaliar a população inicial
+    for ind in pop:
+        if not ind.fitness.valid:
+            ind.fitness.values = toolbox.evaluate(ind)
 
-        elitism = int(preservation * len(pop))
-        elite = toolbox.select(pop, elitism)
+    pop, _ = algorithms.eaSimple(
+        pop, 
+        toolbox, 
+        cxpb=crossover_probability, 
+        mutpb=mutation_probability, 
+        ngen=n_generations, 
+        stats=None, 
+        halloffame=None, 
+        verbose=False
+    )
 
-        offspring = toolbox.clone(pop)
-        for mutant in offspring:
-            if random.random() < 0.2:
-                toolbox.mutate(mutant)
-                del mutant.fitness.values
+    for ind in pop:
+        if not ind.fitness.valid:
+            ind.fitness.values = toolbox.evaluate(ind)
 
-        for ind in offspring:
-            if not ind.fitness.valid:
-                ind.fitness.values = toolbox.evaluate(ind)
-
-        pop[:] = elite + offspring[: len(pop) - elitism]
-
-    results.put(tools.selBest(pop, 1)[0])
+    return tools.selBest(pop, 1)[0]
 
 
-def run(courses, candidates, preferences, da):
-    """
-    Main function to run the genetic algorithm in parallel and process results.
-    Uses multiprocessing to run multiple instances of the algorithm and selects
-    the best result among them.
-    """
-    processes = []
-    results = Queue()
+def run(courses, preferences, da):
 
-    # Parallelize to run n times
-    for _ in range(cpu_count()):
-        process = Process(
-            target=do_the_scheduled,
-            args=(courses, candidates, preferences, da, results),
-        )
-        process.start()
-        processes.append(process)
-
-    # Wait for parallel execution to complete
-    for process in processes:
-        process.join()
-
-    # Select the best result obtained
-    better = list()
-    old_eval = 0
-    while not results.empty():
-        res = results.get()
-        eval = evaluate_individual(res, courses, preferences)
-        if eval[0] > old_eval:
-            old_eval = eval[0]
-            better = res
+    better = do_the_scheduled(courses, preferences, da)
 
     metrics = {
         "best_individual": better,
@@ -268,8 +245,8 @@ if __name__ == "__main__":
         if students_excel_path.endswith(".csv"):
             excel_flag = False
 
-        courses, candidates, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag)
-        metrics, result_rows = run(courses, candidates, preferences, da)
+        courses, _, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag)
+        metrics, result_rows = run(courses, preferences, da)
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
 
