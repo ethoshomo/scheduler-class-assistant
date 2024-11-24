@@ -2,7 +2,6 @@ import random
 import numpy as np
 import pandas as pd
 from deap import base, creator, tools, algorithms
-import pandas as pd
 from multiprocessing import *
 import sys
 import json
@@ -166,7 +165,7 @@ def run(courses, preferences, da):
     return metrics, result_rows
 
 
-def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd.DataFrame:
+def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, preference_flag:bool=True) -> pd.DataFrame:
     df_courses = pd.read_excel(courses_excel_path)
 
     courses = []
@@ -196,27 +195,24 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool) -> pd
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
 
-    df = pd.merge(df, df_courses, on='Course Name', how='left')
-
-    df = df.loc[df.index.repeat(df['Number of Classes'])].reset_index(drop=True)
-
-    # Adicionando um contador para cada grupo de 'nome'
-    df['class_number'] = df.groupby('Course Name').cumcount() + 1
-
-    # Alterando a coluna 'nome' para incluir o contador
+    df_courses = df_courses.loc[df_courses.index.repeat(df_courses['Number of Classes'])].reset_index(drop=True)
+    df_courses['class_number'] = df_courses.groupby('Course Name').cumcount() + 1
+    df_courses = df_courses.drop(columns='Number of Classes')
+    
+    df = pd.merge(df, df_courses, on='Course Name')
     df['Course Name'] = df['Course Name'] + ' - Class ' + df['class_number'].astype(str)
 
     # Removendo a coluna auxiliar 'contador', se necessário
-    df = df.drop(columns='class_number')
+    df = df.drop(columns='class_number').drop_duplicates()
 
     candidates = [i.item() for i in df["Student ID"].unique()]
 
     preferences = {}
     for candidate in candidates:
-        df_filtered = df[df["Student ID"] == candidate].copy().sort_values("Preference")
+        df_filtered = df[df["Student ID"] == candidate].copy()
 
         preferences[int(candidate)] = {
-            row["Course Name"]: row["Grade"] for _, row in df_filtered.iterrows()
+            row["Course Name"]: row["Grade"] * np.exp(-0.4 * (row["Preference"] - 1)) if preference_flag == True else row["Grade"] for _, row in df_filtered.iterrows()
         }
 
     da = {}
