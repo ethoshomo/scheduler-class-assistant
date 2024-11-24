@@ -10,18 +10,37 @@ import json
 def create_individual(d, da):
     i = [0] * len(d)
     chosen = set()
-    d_random = d.copy()
-    random.shuffle(d_random)
+    
+    # Aleatoriza busca no espaço
+    method = random.random()
 
-    for disc in d_random:
-        a = set(da[disc])
-        a = list(a - chosen)
-        if len(a) != 0:
-            selected = random.choice(a)
-            chosen.add(selected)
-            i[d.index(disc)] = selected
-        else:
-            i[d.index(disc)] = 0
+    # Escolhe de forma aletória
+    if method < 0.5:
+        d_random = d.copy()
+        random.shuffle(d_random)
+
+        for disc in d_random:
+            a = set(da[disc])
+            a = list(a - chosen)
+            if len(a) != 0:
+                selected = random.choice(a)
+                chosen.add(selected)
+                i[d.index(disc)] = selected
+            else:
+                i[d.index(disc)] = 0
+    
+    # Disciplina com menos candidatos primeiro
+    else:
+        for id in da:
+            a = set(da[id])
+            a = list(a - chosen)
+            if len(a) != 0:
+                selected = random.choice(a)
+                chosen.add(selected)
+                i[d.index(id)] = selected
+            else:
+                i[d.index(id)] = 0
+
     return i
 
 
@@ -52,20 +71,21 @@ def measure_satisfaction(i, d, p):
 
 
 def evaluate_individual(i, d, p):
-    rooms = len(i) * count_rooms(i, d, p)
+    rooms = 10 * count_rooms(i, d, p)
     interests = measure_satisfaction(i, d, p)
     return (np.linalg.norm([rooms, interests]),)
 
 
-def selection_elitism(population, n_individuals):
-    elitism = int(0.2 * len(population))  # 20% da população como elitistas
-    elite = tools.selBest(population, elitism)
-    rest = tools.selTournament(population, n_individuals - elitism, tournsize=3)
-    return elite + rest
-
-
 def do_the_scheduled(courses, preferences, da):
-    population_size = 1000
+
+    def selection_elitism(population, n_individuals):
+        elitism = int(0.2 * len(population))
+        elite = tools.selBest(population, elitism)
+        remaining_population = toolbox.population(n=n_individuals - elitism)
+        return elite + remaining_population
+
+
+    population_size = 500
     n_generations = 50
     mutation_probability = 0.2
     crossover_probability = 0.7
@@ -111,7 +131,6 @@ def do_the_scheduled(courses, preferences, da):
 
     pop = toolbox.population(n=population_size)
 
-    # Avaliar a população inicial
     for ind in pop:
         if not ind.fitness.valid:
             ind.fitness.values = toolbox.evaluate(ind)
@@ -136,6 +155,7 @@ def do_the_scheduled(courses, preferences, da):
 
 def run(courses, preferences, da):
 
+    da = dict(sorted(da.items(), key=lambda item: len(item[1])))
     better = do_the_scheduled(courses, preferences, da)
 
     metrics = {
