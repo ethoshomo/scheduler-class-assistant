@@ -151,7 +151,6 @@ def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
 
 def run(courses, preferences, da, generation_number, population_size):
-
     da = dict(sorted(da.items(), key=lambda item: len(item[1])))
     better = do_the_scheduled(courses, preferences, da, generation_number, population_size)
 
@@ -174,11 +173,9 @@ def run(courses, preferences, da, generation_number, population_size):
     df = pd.DataFrame.from_records(result_rows, columns=['class', 'students', 'grade', 'preference'])
 
     metrics = {
-        "best_individual": better,
         "number_classes": count_rooms(better, courses, preferences),
         "total_classes": len(df),
-        "satisfaction": measure_satisfaction(better, courses, preferences),
-        "avarage_grade": df['grade'].mean(),
+        "avarage_grade": df[df['grade'] != 'No preference']['grade'].astype(float).mean(),
     }
 
 
@@ -189,7 +186,6 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_g
     df_courses = pd.read_excel(courses_excel_path)
 
     courses = []
-
     for _, row in df_courses.iterrows():
         course = row['Course Name']
         n = row['Number of Classes']
@@ -250,7 +246,7 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_g
     return courses, candidates, preferences, da
 
 if __name__ == "__main__":
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 3:
         result = {"success": False, "error": "No file path or parameters provided"}
         sys.stderr.write(json.dumps(result))
         sys.exit(1)
@@ -260,10 +256,15 @@ if __name__ == "__main__":
 
         students_excel_path = sys.argv[1]
         courses_excel_path = sys.argv[2]
-        min_grade = float(sys.argv[3])
-        preference_flag = bool(sys.argv[4])
-        generation_number = int(sys.argv[5])
-        population_size = int(sys.argv[6])
+        #min_grade = float(sys.argv[3])
+        #preference_flag = bool(sys.argv[4])
+        #generation_number = int(sys.argv[5])
+        #population_size = int(sys.argv[6])
+
+        min_grade = 0
+        preference_flag = True
+        generation_number = 100
+        population_size = 1000
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
@@ -272,7 +273,6 @@ if __name__ == "__main__":
         courses, _, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag, min_grade, preference_flag)
         metrics, result_rows = run(courses, preferences, da, generation_number, population_size)
         end = time.time()
-
         metrics['execution_time'] = end - start
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
