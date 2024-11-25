@@ -121,7 +121,7 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
 
     # Funcao objetivo
     modelo += lpSum(
-        avarage_grades[a] * x_ad[(a, d)] for a in candidates for d in courses
+        preferences[a][d] * x_ad[(a, d)] for a in candidates for d in courses if d in preferences[a].keys()
     ) - lpSum(y_d[d] for d in courses)
 
     # Restrições
