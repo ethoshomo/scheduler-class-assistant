@@ -5,7 +5,7 @@ from deap import base, creator, tools, algorithms
 from multiprocessing import *
 import sys
 import json
-
+import time
 
 def create_individual(d, da):
     i = [0] * len(d)
@@ -76,7 +76,7 @@ def evaluate_individual(i, d, p):
     return (np.linalg.norm([rooms, interests]),)
 
 
-def do_the_scheduled(courses, preferences, da):
+def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
     def selection_elitism(population, n_individuals):
         elitism = int(0.2 * len(population))
@@ -84,9 +84,6 @@ def do_the_scheduled(courses, preferences, da):
         remaining_population = toolbox.population(n=n_individuals - elitism)
         return elite + remaining_population
 
-
-    population_size = 500
-    n_generations = 50
     mutation_probability = 0.2
     crossover_probability = 0.7
 
@@ -153,19 +150,12 @@ def do_the_scheduled(courses, preferences, da):
     return tools.selBest(pop, 1)[0]
 
 
-def run(courses, preferences, da):
+def run(courses, preferences, da, generation_number, population_size):
 
     da = dict(sorted(da.items(), key=lambda item: len(item[1])))
-    better = do_the_scheduled(courses, preferences, da)
-
-    metrics = {
-        "best_individual": better,
-        "number_classes": count_rooms(better, courses, preferences),
-        "satisfaction": measure_satisfaction(better, courses, preferences),
-    }
+    better = do_the_scheduled(courses, preferences, da, generation_number, population_size)
 
     result_rows = []
-
     for index, student_id in enumerate(better):
         if student_id == 0:
             student_id = "No tutor"
@@ -181,11 +171,21 @@ def run(courses, preferences, da):
                 "preference": preferences.get(student_id, {}),
             }
         )
+    df = pd.DataFrame.from_records(result_rows, columns=['class', 'students', 'grade', 'preference'])
+
+    metrics = {
+        "best_individual": better,
+        "number_classes": count_rooms(better, courses, preferences),
+        "total_classes": len(df),
+        "satisfaction": measure_satisfaction(better, courses, preferences),
+        "avarage_grade": df['grade'].mean(),
+    }
+
 
     return metrics, result_rows
 
 
-def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, preference_flag:bool=True) -> pd.DataFrame:
+def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_grade:float, preference_flag:bool) -> pd.DataFrame:
     df_courses = pd.read_excel(courses_excel_path)
 
     courses = []
@@ -214,6 +214,8 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, prefe
         raise Exception('Column "Preference" is required in the tutors table!')
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
+
+    df = df[df['Grade'] >= min_grade]
 
     df_courses = df_courses.loc[df_courses.index.repeat(df_courses['Number of Classes'])].reset_index(drop=True)
     df_courses['class_number'] = df_courses.groupby('Course Name').cumcount() + 1
@@ -248,21 +250,30 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, prefe
     return courses, candidates, preferences, da
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        result = {"success": False, "error": "No file path provided"}
+    if len(sys.argv) < 6:
+        result = {"success": False, "error": "No file path or parameters provided"}
         sys.stderr.write(json.dumps(result))
         sys.exit(1)
 
     try:
+        start = time.time()
+
         students_excel_path = sys.argv[1]
         courses_excel_path = sys.argv[2]
+        min_grade = float(sys.argv[3])
+        preference_flag = bool(sys.argv[4])
+        generation_number = int(sys.argv[5])
+        population_size = int(sys.argv[6])
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
             excel_flag = False
 
-        courses, _, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag)
-        metrics, result_rows = run(courses, preferences, da)
+        courses, _, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag, min_grade, preference_flag)
+        metrics, result_rows = run(courses, preferences, da, generation_number, population_size)
+        end = time.time()
+
+        metrics['execution_time'] = end - start
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
 
