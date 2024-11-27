@@ -13,17 +13,17 @@ static ACTIVE_COMMANDS: LazyLock<Mutex<HashSet<String>>> =
 #[cfg(target_os = "windows")]
 const GENETIC_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/genetic.exe";
 #[cfg(target_os = "windows")]
-const SIMPLEX_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/simplex.exe";
+const LINEAR_BINARY_PATH: &str = "binaries/x86_64-pc-windows-msvc/linear.exe";
 
 #[cfg(target_os = "linux")]
 const GENETIC_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/genetic";
 #[cfg(target_os = "linux")]
-const SIMPLEX_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/simplex";
+const LINEAR_BINARY_PATH: &str = "binaries/x86_64-unknown-linux-gnu/linear";
 
 fn get_algorithm_path(algorithm: &str) -> Result<std::path::PathBuf, String> {
     let binary_path = match algorithm {
         "genetic" => GENETIC_BINARY_PATH,
-        "simplex" => SIMPLEX_BINARY_PATH,
+        "linear" => LINEAR_BINARY_PATH,
         _ => return Err("Invalid algorithm specified".into()),
     };
 

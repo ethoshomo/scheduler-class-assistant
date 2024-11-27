@@ -383,8 +383,8 @@ const ResultsStep = ({
 								Algorithm Used
 							</dt>
 							<dd className="text-2xl font-bold">
-								{selectedAlgorithm === "simplex"
-									? "Simplex"
+								{selectedAlgorithm === "linear"
+									? "Linear Programming"
 									: "Genetic"}
 							</dd>
 						</div>

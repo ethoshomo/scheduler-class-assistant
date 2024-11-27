@@ -291,7 +291,7 @@ const StudentInput = ({ courses, data, onDataChange }: StudentInputProps) => {
 
 		// Validate each row
 		rows.forEach((row, index) => {
-			const rowNumber = index + 1;
+			const rowNumber = index + 2; // starting in zero and header
 
 			// Check Student ID
 			if (!row["Student ID"] || !/^\d+$/.test(row["Student ID"])) {

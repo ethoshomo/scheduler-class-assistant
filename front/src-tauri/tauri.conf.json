@@ -44,8 +44,8 @@
 						"args": true
 					},
 					{
-						"name": "simplex",
-						"cmd": "binaries/{{target}}/simplex",
+						"name": "linear",
+						"cmd": "binaries/{{target}}/linear",
 						"args": true
 					},
 					{

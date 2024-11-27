@@ -233,8 +233,8 @@ const App = () => {
 							<SelectValue placeholder="Select an algorithm" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="simplex">
-								Simplex Algorithm
+							<SelectItem value="linear">
+								Linear Programming Algorithm
 							</SelectItem>
 							<SelectItem value="genetic">
 								Genetic Algorithm
@@ -254,7 +254,7 @@ const App = () => {
 				Please wait while we allocate tutors to courses...
 			</p>
 			<p className="text-sm text-muted-foreground">
-				Using {selectedAlgorithm === "simplex" ? "Simplex" : "Genetic"}{" "}
+				Using {selectedAlgorithm === "linear" ? "Linear Programming" : "Genetic"}{" "}
 				Algorithm
 			</p>
 		</div>

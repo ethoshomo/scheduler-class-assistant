@@ -83,10 +83,10 @@ def compile_genetic(target_dir: str):
     print(f"Created genetic algorithm executable in: {target_dir}")
 
 
-def compile_simplex(target_dir: str):
-    """Compile the simplex algorithm"""
-    print("Compiling simplex algorithm...")
-    simplex_source = os.path.join(os.path.dirname(__file__), "simplex.py")
+def compile_linear(target_dir: str):
+    """Compile the linear algorithm"""
+    print("Compiling linear algorithm...")
+    linear_source = os.path.join(os.path.dirname(__file__), "linear.py")
 
     # Find CBC solver
     try:
@@ -97,7 +97,7 @@ def compile_simplex(target_dir: str):
         raise
 
     common_options = ["--onefile", "--clean"]
-    simplex_options = [
+    linear_options = [
         "--hidden-import=pulp",
         "--hidden-import=pulp.apis",
         "--hidden-import=pulp.apis.coin_api",
@@ -109,17 +109,17 @@ def compile_simplex(target_dir: str):
         [
             "pyinstaller",
             *common_options,
-            *simplex_options,
+            *linear_options,
             "--name",
-            "simplex",
+            "linear",
             # "--debug=all",
-            simplex_source,
+            linear_source,
         ],
         check=True,
     )
 
     # Move the executables
-    source_name = "simplex.exe" if platform.system() == "Windows" else "simplex"
+    source_name = "linear.exe" if platform.system() == "Windows" else "linear"
     source = os.path.join(os.path.dirname(__file__), "dist", source_name)
     target = os.path.join(target_dir, source_name)
     shutil.move(source, target)
@@ -132,7 +132,7 @@ def compile_simplex(target_dir: str):
         os.chmod(target, 0o755)
         print(f"Copied CBC solver to: {cbc_target}")
 
-    print(f"Created simplex algorithm executable in: {target_dir}")
+    print(f"Created linear algorithm executable in: {target_dir}")
 
 
 def cleanup():
@@ -141,7 +141,7 @@ def cleanup():
     build_dir = os.path.join(os.path.dirname(__file__), "build")
     dist_dir = os.path.join(os.path.dirname(__file__), "dist")
 
-    for spec_file in ["genetic.spec", "simplex.spec"]:
+    for spec_file in ["genetic.spec", "linear.spec"]:
         spec_path = os.path.join(os.path.dirname(__file__), spec_file)
         if os.path.exists(spec_path):
             os.remove(spec_path)
@@ -176,13 +176,13 @@ def main():
         "--genetic", action="store_true", help="Build only the genetic algorithm"
     )
     parser.add_argument(
-        "--simplex", action="store_true", help="Build only the simplex algorithm"
+        "--linear", action="store_true", help="Build only the linear algorithm"
     )
     args = parser.parse_args()
 
     try:
         # If no specific algorithm is selected, build both
-        build_both = not (args.genetic or args.simplex)
+        build_both = not (args.genetic or args.linear)
 
         print("Creating directories...")
         create_directories()
@@ -196,8 +196,8 @@ def main():
         if args.genetic or build_both:
             compile_genetic(target_dir)
 
-        if args.simplex or build_both:
-            compile_simplex(target_dir)
+        if args.linear or build_both:
+            compile_linear(target_dir)
 
         cleanup()
         print("Build completed successfully!")

@@ -136,7 +136,7 @@ const CourseInput = ({ onDataChange }: CourseInputProps) => {
 
 		// Validate each row
 		rows.forEach((row, index) => {
-			const rowNumber = index + 1;
+			const rowNumber = index + 2; // starting in zero and header
 			const courseName = row["Course Name"];
 
 			// Check Course Name
