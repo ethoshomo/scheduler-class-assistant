@@ -31,30 +31,7 @@
 			"icons/128x128@2x.png",
 			"icons/icon.icns",
 			"icons/icon.ico"
-		]
-	},
-	"plugins": {
-		"shell": {
-			"open": true,
-			"scope": {
-				"allow": [
-					{
-						"name": "genetic",
-						"cmd": "binaries/{{target}}/genetic",
-						"args": true
-					},
-					{
-						"name": "linear",
-						"cmd": "binaries/{{target}}/linear",
-						"args": true
-					},
-					{
-						"name": "cbc",
-						"cmd": "binaries/{{target}}/cbc",
-						"args": true
-					}
-				]
-			}
-		}
+		],
+		"externalBin": ["binaries/genetic", "binaries/linear", "binaries/cbc"]
 	}
 }

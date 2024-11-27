@@ -49,13 +49,14 @@ def find_cbc_executable():
 
 def create_directories():
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    directories = [
-        os.path.join(base_path, "front/src-tauri/binaries/x86_64-pc-windows-msvc"),
-        os.path.join(base_path, "front/src-tauri/binaries/x86_64-unknown-linux-gnu"),
-    ]
-    for directory in directories:
-        os.makedirs(directory, exist_ok=True)
-        print(f"Created directory: {directory}")
+    if platform.system() == "Windows":
+        binary_dir = os.path.join(base_path, "front/src-tauri/binaries")
+    else:
+        binary_dir = os.path.join(base_path, "front/src-tauri/binaries")
+
+    os.makedirs(binary_dir, exist_ok=True)
+    print(f"Created directory: {binary_dir}")
+    return binary_dir
 
 
 def compile_genetic(target_dir: str):
@@ -70,17 +71,22 @@ def compile_genetic(target_dir: str):
         check=True,
     )
 
-    # Move the executable
-    source_name = "genetic.exe" if platform.system() == "Windows" else "genetic"
-    source = os.path.join(os.path.dirname(__file__), "dist", source_name)
-    target = os.path.join(target_dir, source_name)
+    # Move the executable with platform-specific name
+    if platform.system() == "Windows":
+        source = os.path.join(os.path.dirname(__file__), "dist", "genetic.exe")
+        target_name = "genetic-x86_64-pc-windows-msvc.exe"
+    else:
+        source = os.path.join(os.path.dirname(__file__), "dist", "genetic")
+        target_name = "genetic-x86_64-unknown-linux-gnu"
+
+    target = os.path.join(target_dir, target_name)
     shutil.move(source, target)
 
     # Set executable permissions on Linux
     if platform.system() != "Windows":
         os.chmod(target, 0o755)
 
-    print(f"Created genetic algorithm executable in: {target_dir}")
+    print(f"Created genetic algorithm executable: {target}")
 
 
 def compile_linear(target_dir: str):
@@ -112,27 +118,35 @@ def compile_linear(target_dir: str):
             *linear_options,
             "--name",
             "linear",
-            # "--debug=all",
             linear_source,
         ],
         check=True,
     )
 
-    # Move the executables
-    source_name = "linear.exe" if platform.system() == "Windows" else "linear"
-    source = os.path.join(os.path.dirname(__file__), "dist", source_name)
-    target = os.path.join(target_dir, source_name)
+    # Move the executables with platform-specific names
+    if platform.system() == "Windows":
+        source = os.path.join(os.path.dirname(__file__), "dist", "linear.exe")
+        target_name = "linear-x86_64-pc-windows-msvc.exe"
+        cbc_target_name = "cbc-x86_64-pc-windows-msvc.exe"
+    else:
+        source = os.path.join(os.path.dirname(__file__), "dist", "linear")
+        target_name = "linear-x86_64-unknown-linux-gnu"
+        cbc_target_name = "cbc-x86_64-unknown-linux-gnu"
+
+    target = os.path.join(target_dir, target_name)
     shutil.move(source, target)
 
-    # Copy CBC solver and set permissions on Linux
+    # Copy CBC solver with platform-specific name
+    cbc_target = os.path.join(target_dir, cbc_target_name)
+    shutil.copy2(cbc_path, cbc_target)
+
+    # Set executable permissions on Linux
     if platform.system() != "Windows":
-        cbc_target = os.path.join(target_dir, "cbc")
-        shutil.copy2(cbc_path, cbc_target)
         os.chmod(cbc_target, 0o755)
         os.chmod(target, 0o755)
-        print(f"Copied CBC solver to: {cbc_target}")
 
-    print(f"Created linear algorithm executable in: {target_dir}")
+    print(f"Created linear algorithm executable: {target}")
+    print(f"Copied CBC solver to: {cbc_target}")
 
 
 def cleanup():
@@ -155,19 +169,6 @@ def cleanup():
         print("Removed dist directory")
 
 
-def get_target_directory():
-    """Get the target directory based on platform"""
-    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    if platform.system() == "Windows":
-        return os.path.join(
-            base_path, "front/src-tauri/binaries/x86_64-pc-windows-msvc"
-        )
-    else:
-        return os.path.join(
-            base_path, "front/src-tauri/binaries/x86_64-unknown-linux-gnu"
-        )
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Build executables for the scheduler application."
@@ -185,9 +186,7 @@ def main():
         build_both = not (args.genetic or args.linear)
 
         print("Creating directories...")
-        create_directories()
-
-        target_dir = get_target_directory()
+        target_dir = create_directories()
         print(f"Target directory: {target_dir}")
 
         # Change to the script's directory for PyInstaller
