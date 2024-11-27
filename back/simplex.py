@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+import time
 from pulp import (
     LpProblem,
     LpMaximize,
@@ -44,7 +46,7 @@ def get_solver():
         return PULP_CBC_CMD(msg=0)  # Suppress output here too
 
 
-def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, preference_flag:bool=True) -> pd.DataFrame:
+def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_grade:float, preference_flag:bool) -> pd.DataFrame:
     df_courses = pd.read_excel(courses_excel_path)
 
     courses = []
@@ -74,6 +76,7 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, prefe
 
     df = df[["Student ID", "Course Name", "Grade", "Preference"]]
 
+    df = df[df['Grade'] >= min_grade]
     df_courses = df_courses.loc[df_courses.index.repeat(df_courses['Number of Classes'])].reset_index(drop=True)
     df_courses['class_number'] = df_courses.groupby('Course Name').cumcount() + 1
     df_courses = df_courses.drop(columns='Number of Classes')
@@ -87,15 +90,12 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, prefe
     candidates = [i.item() for i in df["Student ID"].unique()]
 
     preferences = {}
-    avarage_grades = {}  # N_aa
 
     for candidate in candidates:
-        df_filtered = df[df["Student ID"] == candidate].copy().sort_values("Preference")
-
-        avarage_grades[candidate] = df_filtered["Grade"].mean()
+        df_filtered = df[df["Student ID"] == candidate].copy()
 
         preferences[int(candidate)] = {
-            row["Course Name"]: row["Grade"] for _, row in df_filtered.iterrows()
+            row["Course Name"]: row["Grade"] * np.exp(-0.4 * (row["Preference"] - 1)) if preference_flag == True else row["Grade"] for _, row in df_filtered.iterrows()
         }
 
     course_candidates = {}
@@ -107,10 +107,10 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, prefe
             else:
                 course_candidates[(candidate, course)] = 0
 
-    return courses, candidates, preferences, avarage_grades, course_candidates
+    return courses, candidates, preferences, course_candidates
 
 
-def run(courses, candidates, preferences, avarage_grades, course_candidates):
+def run(courses, candidates, preferences, course_candidates):
     modelo = LpProblem("Alocacao_de_Monitores", LpMaximize)
 
     # Variaveis de decisao
@@ -152,11 +152,6 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
             raise Exception(f"Solver status: {LpProblem.status[modelo.status]}")
     except Exception as e:
         raise Exception(f"Error solving model: {str(e)}")
-
-    metrics = {
-        "objective_function_value": modelo.objective.value(),
-        "soluction_status": modelo.status,
-    }
 
     result_rows = []
 
@@ -208,24 +203,33 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
+        start = time.time()
         # Redirect stdout to devnull during computation to suppress CBC output
         original_stdout = sys.stdout
+        
         sys.stdout = open(os.devnull, "w")
 
         students_excel_path = sys.argv[1]
         courses_excel_path = sys.argv[2]
+        #min_grade = float(sys.argv[3])
+        #preference_flag = bool(sys.argv[4])
+        min_grade = 0
+        preference_flag = True
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
             excel_flag = False
 
-        courses, candidates, preferences, avarage_grades, course_candidates = (
-            process_file(students_excel_path, courses_excel_path, excel_flag)
+        courses, candidates, preferences, course_candidates = (
+            process_file(students_excel_path, courses_excel_path, excel_flag, min_grade, preference_flag)
         )
         metrics, result_rows = run(
-            courses, candidates, preferences, avarage_grades, course_candidates
+            courses, candidates, preferences, course_candidates
         )
-        
+        end = time.time()
+
+        metrics['execution_time'] = end - start
+
         # Restore stdout before writing our result
         sys.stdout = original_stdout
 

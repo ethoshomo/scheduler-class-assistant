@@ -78,13 +78,19 @@ def evaluate_individual(i, d, p):
 
 def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
+    def mutate(ind):
+        if random.random() < mutation_probability:
+            random_course = random.choice(courses)
+            ind[courses.index(random_course)] = random.choice(da[random_course])
+        return ind,
+
     def selection_elitism(population, n_individuals):
         elitism = int(0.2 * len(population))
         elite = tools.selBest(population, elitism)
         remaining_population = toolbox.population(n=n_individuals - elitism)
         return elite + remaining_population
 
-    mutation_probability = 0.2
+    mutation_probability = 0.1
     crossover_probability = 0.7
 
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -117,8 +123,7 @@ def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
     toolbox.register(
         "mutate", 
-        tools.mutShuffleIndexes, 
-        indpb=mutation_probability
+        mutate
     )
 
     toolbox.register(
@@ -151,7 +156,6 @@ def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
 
 def run(courses, preferences, da, generation_number, population_size):
-
     da = dict(sorted(da.items(), key=lambda item: len(item[1])))
     better = do_the_scheduled(courses, preferences, da, generation_number, population_size)
 
@@ -187,7 +191,6 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_g
     df_courses = pd.read_excel(courses_excel_path)
 
     courses = []
-
     for _, row in df_courses.iterrows():
         course = row['Course Name']
         n = row['Number of Classes']
@@ -248,7 +251,7 @@ def process_file(file_path: str, courses_excel_path:str, excel_flag: bool, min_g
     return courses, candidates, preferences, da
 
 if __name__ == "__main__":
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 3:
         result = {"success": False, "error": "No file path or parameters provided"}
         sys.stderr.write(json.dumps(result))
         sys.exit(1)
@@ -258,10 +261,15 @@ if __name__ == "__main__":
 
         students_excel_path = sys.argv[1]
         courses_excel_path = sys.argv[2]
-        min_grade = float(sys.argv[3])
-        preference_flag = bool(sys.argv[4])
-        generation_number = int(sys.argv[5])
-        population_size = int(sys.argv[6])
+        #min_grade = float(sys.argv[3])
+        #preference_flag = bool(sys.argv[4])
+        #generation_number = int(sys.argv[5])
+        #population_size = int(sys.argv[6])
+
+        min_grade = 0
+        preference_flag = True
+        generation_number = 50
+        population_size = 500
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
@@ -270,7 +278,6 @@ if __name__ == "__main__":
         courses, _, preferences, da = process_file(students_excel_path, courses_excel_path, excel_flag, min_grade, preference_flag)
         metrics, result_rows = run(courses, preferences, da, generation_number, population_size)
         end = time.time()
-
         metrics['execution_time'] = end - start
 
         result = {"success": True, "data": {"metrics": metrics, "results": result_rows}}
