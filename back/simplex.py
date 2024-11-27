@@ -190,6 +190,13 @@ def run(courses, candidates, preferences, avarage_grades, course_candidates):
                 "preference": "No preference",
             }
         )
+    df = pd.DataFrame.from_records(result_rows, columns=['class', 'students', 'grade', 'preference'])
+
+    metrics = {
+        "number_classes_allocated": len(alocacoes),
+        "total_classes": len(disciplinas_sem_monitor) + len(alocacoes),
+        "average_grade": df[df['grade'] != 'No preference']['grade'].astype(float).mean(),
+    }
 
     return metrics, result_rows
 

@@ -30,9 +30,10 @@ import * as XLSX from "xlsx";
 import { Badge } from "../ui/badge";
 
 interface AllocationMetrics {
-	number_classes: number;
-	satisfaction: number;
-	best_individual?: number[];
+	number_classes_allocated: number;
+	total_classes: number;
+	execution_time: number;
+	average_grade: number;
 }
 
 export interface AllocationResult {
@@ -368,7 +369,6 @@ const ResultsStep = ({
 	}
 
 	const { metrics } = allocationResult;
-	const satisfactionPercentage = (metrics.satisfaction * 100).toFixed(1);
 
 	return (
 		<div className="space-y-6">
@@ -390,18 +390,34 @@ const ResultsStep = ({
 						</div>
 						<div>
 							<dt className="text-sm font-medium text-muted-foreground">
-								Classes Allocated
+								Processing Time
 							</dt>
 							<dd className="text-2xl font-bold">
-								{metrics.number_classes}
+								{metrics.execution_time.toFixed(2)} s
 							</dd>
 						</div>
 						<div>
 							<dt className="text-sm font-medium text-muted-foreground">
-								Satisfaction Score
+								Classes Allocated
 							</dt>
 							<dd className="text-2xl font-bold">
-								{satisfactionPercentage}%
+								{metrics.number_classes_allocated} / {metrics.total_classes}
+							</dd>
+						</div>
+						<div>
+							<dt className="text-sm font-medium text-muted-foreground">
+								Percentage Classes Allocated
+							</dt>
+							<dd className="text-2xl font-bold">
+								{((metrics.number_classes_allocated / metrics.total_classes) * 100).toFixed(2)} %
+							</dd>
+						</div>
+						<div>
+							<dt className="text-sm font-medium text-muted-foreground">
+								Average Grade Allocated
+							</dt>
+							<dd className="text-2xl font-bold">
+								{metrics.average_grade.toFixed(2)}
 							</dd>
 						</div>
 					</dl>

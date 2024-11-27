@@ -174,11 +174,9 @@ def run(courses, preferences, da, generation_number, population_size):
     df = pd.DataFrame.from_records(result_rows, columns=['class', 'students', 'grade', 'preference'])
 
     metrics = {
-        "best_individual": better,
-        "number_classes": count_rooms(better, courses, preferences),
+        "number_classes_allocated": count_rooms(better, courses, preferences),
         "total_classes": len(df),
-        "satisfaction": measure_satisfaction(better, courses, preferences),
-        "avarage_grade": df['grade'].mean(),
+        "average_grade": df[df['grade'] != 'No preference']['grade'].astype(float).mean(),
     }
 
 
