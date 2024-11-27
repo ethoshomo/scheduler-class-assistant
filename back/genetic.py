@@ -78,13 +78,19 @@ def evaluate_individual(i, d, p):
 
 def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
+    def mutate(ind):
+        if random.random() < mutation_probability:
+            random_course = random.choice(courses)
+            ind[courses.index(random_course)] = random.choice(da[random_course])
+        return ind,
+
     def selection_elitism(population, n_individuals):
         elitism = int(0.2 * len(population))
         elite = tools.selBest(population, elitism)
         remaining_population = toolbox.population(n=n_individuals - elitism)
         return elite + remaining_population
 
-    mutation_probability = 0.2
+    mutation_probability = 0.1
     crossover_probability = 0.7
 
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -117,8 +123,7 @@ def do_the_scheduled(courses, preferences, da, n_generations, population_size):
 
     toolbox.register(
         "mutate", 
-        tools.mutShuffleIndexes, 
-        indpb=mutation_probability
+        mutate
     )
 
     toolbox.register(
@@ -263,8 +268,8 @@ if __name__ == "__main__":
 
         min_grade = 0
         preference_flag = True
-        generation_number = 100
-        population_size = 1000
+        generation_number = 50
+        population_size = 500
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
