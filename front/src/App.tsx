@@ -1,17 +1,4 @@
 import { useState } from "react";
-import {
-	CardHeader,
-	CardTitle,
-	CardContent,
-	CardDescription,
-} from "@/components/ui/card";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import Stepper, { StepStatus } from "./components/widgets/stepper";
 import CourseInput, { CourseData } from "./components/course-input";
@@ -23,7 +10,8 @@ import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import * as XLSX from "xlsx";
 import { Button } from "./components/ui/button";
-import ResultsStep, { AllocationResult } from "./components/steps/ResultsStep";
+import ResultsStep, { AllocationResult } from "./components/steps/results-step";
+import AlgorithmStep, { GENETIC_PRESETS } from "./components/steps/algorithm-step";
 
 const App = () => {
 	const [currentCommand, setCurrentCommand] = useState<string | null>(null);
@@ -34,6 +22,16 @@ const App = () => {
 	const [allocationResult, setAllocationResult] =
 		useState<AllocationResult | null>(null);
 	const [stepperKey, setStepperKey] = useState(0);
+	const [algorithmParameters, setAlgorithmParameters] = useState<{
+		minGrade: number;
+		usePreference: number;
+		generationNumber?: number;
+		populationSize?: number;
+	} | null>(null);
+	const [minGrade, setMinGrade] = useState(7.0);
+	const [usePreference, setUsePreference] = useState(1);
+	const [selectedPreset, setSelectedPreset] = useState("balanced");
+
 	const { toast } = useToast();
 
 	const handleStartOver = () => {
@@ -73,7 +71,7 @@ const App = () => {
 	};
 
 	const processDataWithBackend = async () => {
-		if (isProcessing) return false;
+		if (isProcessing || !algorithmParameters) return false;
 
 		setIsProcessing(true);
 		const commandId = crypto.randomUUID();
@@ -151,9 +149,11 @@ const App = () => {
 				tutorsDataFilePath,
 				coursesDataFilePath,
 				commandId,
+				minGrade: algorithmParameters.minGrade,
+				preferenceFlag: algorithmParameters.usePreference,
+				generationNumber: algorithmParameters.generationNumber,
+				populationSize: algorithmParameters.populationSize,
 			});
-
-			console.log(result);
 
 			if (typeof result === "object" && result !== null) {
 				const typedResult = result as { data?: AllocationResult };
@@ -215,36 +215,49 @@ const App = () => {
 		return false;
 	};
 
-	const AlgorithmSelectionStep = () => (
-		<div className="space-y-6">
-			<div className="max-w-md mx-auto">
-				<CardHeader>
-					<CardTitle>Select Algorithm</CardTitle>
-					<CardDescription>
-						Choose the algorithm to use for tutor allocation
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<Select
-						value={selectedAlgorithm}
-						onValueChange={setSelectedAlgorithm}
-						disabled={isProcessing}>
-						<SelectTrigger>
-							<SelectValue placeholder="Select an algorithm" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="linear">
-								Linear Programming Algorithm
-							</SelectItem>
-							<SelectItem value="genetic">
-								Genetic Algorithm
-							</SelectItem>
-						</SelectContent>
-					</Select>
-				</CardContent>
-			</div>
-		</div>
-	);
+	const AlgorithmSelectionStep = () => {
+		const handleAlgorithmChange = (algorithm: string) => {
+			setSelectedAlgorithm(algorithm);
+			if (algorithm === "genetic") {
+				const preset = GENETIC_PRESETS[selectedPreset];
+				setAlgorithmParameters({
+					minGrade,
+					usePreference,
+					generationNumber: preset.generations,
+					populationSize: preset.populationSize,
+				});
+			} else {
+				setAlgorithmParameters({
+					minGrade,
+					usePreference,
+				});
+			}
+		};
+
+		const handleParametersChange = (params: {
+			minGrade: number;
+			usePreference: number;
+			generationNumber?: number;
+			populationSize?: number;
+		}) => {
+			setAlgorithmParameters(params);
+		};
+
+		return (
+			<AlgorithmStep
+				selectedAlgorithm={selectedAlgorithm}
+				onAlgorithmChange={handleAlgorithmChange}
+				onParametersChange={handleParametersChange}
+				disabled={isProcessing}
+				minGrade={minGrade}
+				onMinGradeChange={setMinGrade}
+				usePreference={usePreference}
+				onUsePreferenceChange={setUsePreference}
+				selectedPreset={selectedPreset}
+				onPresetChange={setSelectedPreset}
+			/>
+		);
+	};
 
 	const ProcessingStep = () => (
 		<div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -254,7 +267,10 @@ const App = () => {
 				Please wait while we allocate tutors to courses...
 			</p>
 			<p className="text-sm text-muted-foreground">
-				Using {selectedAlgorithm === "linear" ? "Linear Programming" : "Genetic"}{" "}
+				Using{" "}
+				{selectedAlgorithm === "linear"
+					? "Linear Programming"
+					: "Genetic"}{" "}
 				Algorithm
 			</p>
 		</div>
@@ -300,7 +316,16 @@ const App = () => {
 					});
 					return false;
 				}
-				// Immediately start processing when moving from algorithm selection
+				if (!algorithmParameters) {
+					toast({
+						variant: "destructive",
+						title: "Invalid Parameters",
+						description:
+							"Please configure the algorithm parameters before proceeding.",
+					});
+					return false;
+				}
+				// Start processing
 				processDataWithBackend();
 				return true;
 
@@ -348,7 +373,14 @@ const App = () => {
 			description: isProcessing
 				? "Allocating tutors to courses"
 				: "View allocation results",
-			content: isProcessing ? <ProcessingStep /> : <ResultsStep allocationResult={allocationResult} selectedAlgorithm={selectedAlgorithm} />,
+			content: isProcessing ? (
+				<ProcessingStep />
+			) : (
+				<ResultsStep
+					allocationResult={allocationResult}
+					selectedAlgorithm={selectedAlgorithm}
+				/>
+			),
 			actions:
 				allocationResult && !isProcessing ? (
 					<div className="flex justify-between w-full">

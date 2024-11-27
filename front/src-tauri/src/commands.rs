@@ -36,6 +36,10 @@ pub async fn run_algorithm(
     algorithm: String,
     tutors_data_file_path: String,
     courses_data_file_path: String,
+    min_grade: f64,
+    preference_flag: i32,
+    generation_number: Option<i32>,
+    population_size: Option<i32>,
 ) -> Result<Value, String> {
     // Verify tutors file exists and has correct extension
     let tutors_path = Path::new(&tutors_data_file_path);
@@ -72,11 +76,35 @@ pub async fn run_algorithm(
     let result = std::thread::spawn(move || {
         let executable = get_algorithm_path(&algorithm)?;
 
-        let mut process = Command::new(executable)
+        // Create a Command instance and store it in a variable
+        let mut command_builder = Command::new(executable);
+
+        // Build the command with all arguments
+        command_builder
             .arg(&tutors_data_file_path)
             .arg(&courses_data_file_path)
+            .arg(min_grade.to_string())
+            .arg(preference_flag.to_string());
+
+        // Add genetic algorithm specific parameters if present
+        if algorithm == "genetic" {
+            if let (Some(gen), Some(pop)) = (generation_number, population_size) {
+                command_builder.arg(gen.to_string()).arg(pop.to_string());
+            } else {
+                return Err("Missing required parameters for genetic algorithm".into());
+            }
+        } else {
+            // Add dummy values for linear algorithm to maintain argument count
+            command_builder.arg("0").arg("0");
+        }
+
+        // Set up the process with stdio
+        command_builder
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // Spawn the process
+        let mut process = command_builder
             .spawn()
             .map_err(|e| format!("Failed to execute program: {}", e))?;
 

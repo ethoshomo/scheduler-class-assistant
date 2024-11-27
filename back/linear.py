@@ -197,7 +197,7 @@ def run(courses, candidates, preferences, course_candidates):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 7:
         result = {"success": False, "error": "No file path provided"}
         sys.stderr.write(json.dumps(result))
         sys.exit(1)
@@ -211,10 +211,11 @@ if __name__ == "__main__":
 
         students_excel_path = sys.argv[1]
         courses_excel_path = sys.argv[2]
-        #min_grade = float(sys.argv[3])
-        #preference_flag = bool(sys.argv[4])
-        min_grade = 0
-        preference_flag = True
+        min_grade = float(sys.argv[3])
+        preference_flag = bool(sys.argv[4])
+
+        # min_grade = 0
+        # preference_flag = True
 
         excel_flag = True
         if students_excel_path.endswith(".csv"):
