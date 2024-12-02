@@ -44,29 +44,45 @@ Os algoritmos genéticos são inspirados pela seleção natural. Neste projeto, 
 Para situações em que soluções mais rígidas são necessárias, métodos lineares são utilizados para modelar e resolver o problema de forma determinística. 
 
 #### Modelo Linear:
-1. **Variáveis de Decisão**:
-   - \( x_{ij} \): Representa se a aula \( i \) está alocada no horário \( j \).
-2. **Função Objetivo**:
-   - Maximizar o cumprimento de preferências ou minimizar conflitos.
-     \[
-     \text{Maximizar: } \sum_{i,j} P_{ij} \cdot x_{ij}
-     \]
-     Onde \( P_{ij} \) é o peso associado à alocação \( x_{ij} \).
-3. **Restrições**:
-   - Cada aula deve ser alocada a um único horário:
-     \[
-     \sum_{j} x_{ij} = 1 \quad \forall i
-     \]
-   - Nenhum recurso (sala/professor) pode estar alocado a múltiplos horários simultaneamente:
-     \[
-     \sum_{i} x_{ij} \leq C_j \quad \forall j
-     \]
-   - Consideração de indisponibilidades:
-     \[
-     x_{ij} = 0 \quad \text{se horário \( j \) for indisponível para \( i \)}.
-     \]
 
-Os métodos lineares são resolvidos usando bibliotecas especializadas, como **SciPy** ou **PuLP**, garantindo eficiência computacional.
+## Variáveis de Decisão:
+- \( x_{ad} \): Indica se o monitor \( a \) é alocado para a disciplina \( d \) (1 para alocado, 0 para não alocado).
+- \( y_d \): Indica se a disciplina \( d \) não possui monitor (1 para não atendida, 0 para atendida).
+
+---
+
+## Função Objetivo:
+O objetivo é maximizar a pontuação total dos monitores alocados às disciplinas, priorizando as maiores notas dos monitores e minimizando o número de disciplinas sem monitores. A pontuação é calculada como:
+
+- **Soma ponderada das médias dos monitores alocados às disciplinas**.
+- **Penalização pelo número de disciplinas sem monitores**.
+
+Isso garante um equilíbrio entre maximizar o desempenho acadêmico e atender ao maior número possível de disciplinas.
+
+---
+
+## Restrições:
+1. **Alocação por disciplina**:
+   - Cada disciplina deve ter no máximo um monitor alocado.
+   - Se nenhum monitor for alocado, a disciplina é marcada como "não atendida".
+
+2. **Limite por monitor**:
+   - Cada monitor pode ser alocado a, no máximo, uma disciplina.
+
+3. **Preferências dos monitores**:
+   - Um monitor só pode ser alocado a uma disciplina se tiver manifestado interesse nela.
+
+4. **Natureza das variáveis**:
+   - As variáveis \( x_{ad} \) e \( y_d \) são binárias (0 ou 1).
+
+---
+
+## Explicação dos Parâmetros:
+- \( A \): Conjunto de monitores disponíveis.
+- \( D \): Conjunto de disciplinas disponíveis.
+- \( s_{ad} \): Indica se o monitor \( a \) está disposto a monitorar a disciplina \( d \) (1 para disponível, 0 para indisponível).
+- \( N_a \): Nota média do monitor \( a \), utilizada como critério de priorização para alocação.
+
 
 ---
 
