@@ -41,7 +41,7 @@ pub async fn run_algorithm(
         let binary_name = if algorithm == "genetic" {
             "genetic"
         } else {
-            "linear"
+            "integer_programming"
         };
 
         // Prepare the arguments

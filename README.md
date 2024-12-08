@@ -2,7 +2,7 @@
 
 ## Descrição
 
-O **Scheduler-ClassAssistant** é uma ferramenta robusta para criação e otimização de horários acadêmicos. Ele utiliza conceitos de programação matemática, como algoritmos genéticos e métodos lineares, para resolver problemas complexos de alocação de recursos e restrições. Este projeto foi projetado para facilitar o gerenciamento de horários, levando em conta critérios como:
+O **Scheduler-ClassAssistant** é uma ferramenta robusta para criação e otimização de horários acadêmicos. Ele utiliza conceitos de programação matemática, como algoritmos genéticos e métodos inteiros, para resolver problemas complexos de alocação de recursos e restrições. Este projeto foi projetado para facilitar o gerenciamento de horários, levando em conta critérios como:
 
 - Disponibilidade de professores.
 - Capacidade de salas.
@@ -40,10 +40,10 @@ Os algoritmos genéticos são inspirados pela seleção natural. Neste projeto, 
 4. **Evolução**:
    - Iterativamente, novas gerações de soluções são criadas até que um critério de parada seja alcançado (ex.: número de gerações ou aptidão satisfatória).
 
-### 2. **Métodos Lineares**
-Para situações em que soluções mais rígidas são necessárias, métodos lineares são utilizados para modelar e resolver o problema de forma determinística. 
+### 2. **Métodos Inteiros**
+Para situações em que soluções mais rígidas são necessárias, métodos inteiros são utilizados para modelar e resolver o problema de forma determinística. 
 
-#### Modelo Linear:
+#### Modelo Inteiro:
 
 ## Variáveis de Decisão:
 - \( x_{ad} \): Indica se o monitor \( a \) é alocado para a disciplina \( d \) (1 para alocado, 0 para não alocado).
@@ -150,7 +150,7 @@ docker run -p 3000:3000 scheduler-assistant`
 
 ## Benefícios do Modelo
 
-- **Flexibilidade**: Combina métodos heurísticos (algoritmos genéticos) com abordagens exatas (programação linear).
+- **Flexibilidade**: Combina métodos heurísticos (algoritmos genéticos) com abordagens exatas (programação inteira).
 - **Otimização Personalizada**: Adapta-se a diferentes critérios de priorização (ex.: minimizar tempos ociosos ou maximizar preferências).
 - **Escalabilidade**: Projetado para lidar com grandes volumes de dados (várias turmas, professores e horários).
 - **Eficiência Computacional**: Algoritmos otimizados para rápida convergência.

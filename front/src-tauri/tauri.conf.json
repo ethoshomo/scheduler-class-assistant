@@ -32,6 +32,6 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
-		"externalBin": ["binaries/genetic", "binaries/linear", "binaries/cbc"]
+		"externalBin": ["binaries/genetic", "binaries/integer_programming", "binaries/cbc"]
 	}
 }

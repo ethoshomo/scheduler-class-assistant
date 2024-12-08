@@ -23,7 +23,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const ALGORITHM_DESCRIPTIONS = {
-	linear: "Uses linear programming to find the optimal allocation that maximizes overall preferences and grades. Guarantees the best possible solution but may take longer for large datasets.",
+	integer_programming: "Uses integer programming to find the optimal allocation that maximizes overall preferences and grades. Guarantees the best possible solution but may take longer for large datasets.",
 	genetic:
 		"Uses genetic algorithms to evolve good solutions over multiple generations. Can quickly find good (but not necessarily optimal) solutions, especially useful for large datasets.",
 };
@@ -179,10 +179,10 @@ const AlgorithmStep = ({
 								<div className="space-y-4">
 									<div>
 										<h4 className="text-sm font-semibold">
-											Linear Programming Algorithm
+											Integer Programming Algorithm
 										</h4>
 										<p className="text-sm">
-											{ALGORITHM_DESCRIPTIONS.linear}
+											{ALGORITHM_DESCRIPTIONS.integer_programming}
 										</p>
 									</div>
 									<div>
@@ -205,8 +205,8 @@ const AlgorithmStep = ({
 							<SelectValue placeholder="Select an algorithm" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="linear">
-								Linear Programming Algorithm
+							<SelectItem value="integer_programming">
+								Integer Programming Algorithm
 							</SelectItem>
 							<SelectItem value="genetic">
 								Genetic Algorithm

@@ -268,8 +268,8 @@ const App = () => {
 			</p>
 			<p className="text-sm text-muted-foreground">
 				Using{" "}
-				{selectedAlgorithm === "linear"
-					? "Linear Programming"
+				{selectedAlgorithm === "integer_programming"
+					? "Integer Programming"
 					: "Genetic"}{" "}
 				Algorithm
 			</p>
