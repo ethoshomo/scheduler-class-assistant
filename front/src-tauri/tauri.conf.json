@@ -13,8 +13,8 @@
 		"windows": [
 			{
 				"title": "Scheduler Class Assistant",
-				"width": 800,
-				"height": 600,
+				"width": 900,
+				"height": 700,
 				"dragDropEnabled": false
 			}
 		],
@@ -32,6 +32,10 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
-		"externalBin": ["binaries/genetic", "binaries/integer_programming", "binaries/cbc"]
+		"externalBin": [
+			"binaries/genetic",
+			"binaries/integer_programming",
+			"binaries/cbc"
+		]
 	}
 }

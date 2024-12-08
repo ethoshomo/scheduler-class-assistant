@@ -83,56 +83,72 @@ Isso garante um equilíbrio entre maximizar o desempenho acadêmico e atender ao
 - \( s_{ad} \): Indica se o monitor \( a \) está disposto a monitorar a disciplina \( d \) (1 para disponível, 0 para indisponível).
 - \( N_a \): Nota média do monitor \( a \), utilizada como critério de priorização para alocação.
 
-
 ---
 
 ## Como Usar
 
-Pré-requisitos
-Backend:
+Um [executável para Windows](colocaraquidepois) está disponível. Basta executar a instalação e rodar o programa normalmente. Os arquivos de entrada para teste também estão disponíveis:
+
+[Disciplinas](dataset/courses_data.xlsx)\
+[Alunos](dataset/students_data.xlsx)
+
+Durante a execução do programa, é possível baixar os templates que demonstram como os arquivos de entrada devem estar formatados. Também é possível inserir os dados manualmente.
+
+Após a inserção dos dados, basta selecionar o modelo, configurar os parâmetros (opcional) e rodar.
+
+As métricas da execução e uma tabela com os resultados serão exibidas. É possível fazer o download dos resultados em formato xlsx ou csv.
+
+---
+
+## Instruções para desenvolvimento
+
+Caso queira rodar o programa em um ambiente de desenvolvimento, siga os passos a seguir.
+
+### Pré-requisitos do ambiente de desenvolvimento
+#### Backend:
 
 Python 3.8 ou superior.
 
 Instale as dependências com:
 
 
-`pip install -r back/requirements.txt`
+```shell
+pip install -r back/requirements.txt
+```
 
-Frontend:
+#### Frontend:
 
 Node.js e PNPM.
 
 Instale as dependências com:
 
-`cd front
-pnpm install`
+```shell
+cd front
+pnpm install
+```
 
-Executando o Projeto
-Backend:
+### Para rodar em desenvolvimento
 
-Execute diretamente usando:
+Primeiro, gere os executáveis dos scripts Python:
 
+```shell
+cd back
+make
+```
 
-`python back/genetic.py`
+Depois, rode o projeto:
 
-Frontend:
+```shell
+cd front
+pnpm run dev
+```
 
-Para desenvolvimento:
+### Para buildar o projeto:
 
-
-`cd front
-pnpm run dev`
-
-Para construir o projeto:
-
-`pnpm run build`
-
-Docker:
-
-O projeto pode ser executado com Docker:
-
-`docker build -t scheduler-assistant .
-docker run -p 3000:3000 scheduler-assistant`
+```shell
+cd front
+pnpm run build
+```
 
 ---
 
