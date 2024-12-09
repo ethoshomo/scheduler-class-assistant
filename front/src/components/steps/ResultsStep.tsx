@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DataTableColumn } from "@/components/widgets/data-table";
 import { DataTable } from "@/components/widgets/data-table";
+import { Separator } from "@/components/ui/separator";
 
 export interface AllocationMetrics {
 	number_classes_allocated: number;
@@ -24,6 +25,12 @@ interface AllocationRow {
 interface ResultsStepProps {
 	allocationResult: AllocationResult | null;
 	selectedAlgorithm: string;
+	algorithmParameters?: {
+		minGrade: number;
+		usePreference: number;
+		generationNumber?: number;
+		populationSize?: number;
+	} | null;
 }
 
 const formatGrade = (value: unknown): string => {
@@ -39,6 +46,7 @@ const formatGrade = (value: unknown): string => {
 const ResultsStep = ({
 	allocationResult,
 	selectedAlgorithm,
+	algorithmParameters,
 }: ResultsStepProps) => {
 	const columns: DataTableColumn<AllocationRow>[] = [
 		{
@@ -82,62 +90,122 @@ const ResultsStep = ({
 	const { metrics } = allocationResult;
 
 	return (
-		<div className="space-y-6">
+		<div className="flex-1 space-y-6 overflow-auto">
 			<Card>
 				<CardHeader>
 					<CardTitle>Summary Metrics</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<dl className="grid grid-cols-3 gap-4">
-						<div>
-							<dt className="text-sm font-medium text-muted-foreground">
-								Algorithm Used
-							</dt>
-							<dd className="text-2xl font-bold">
-								{selectedAlgorithm === "integer_programming"
-									? "Integer Programming"
-									: "Genetic"}
-							</dd>
+					<div className="space-y-6">
+						<div className="grid grid-cols-3 gap-4">
+							<div>
+								<dt className="text-sm font-medium text-muted-foreground">
+									Algorithm Used
+								</dt>
+								<dd className="text-2xl font-bold">
+									{selectedAlgorithm === "integer_programming"
+										? "Integer Programming"
+										: "Genetic"}
+								</dd>
+							</div>
+							<div>
+								<dt className="text-sm font-medium text-muted-foreground">
+									Processing Time
+								</dt>
+								<dd className="text-2xl font-bold">
+									{metrics.execution_time.toFixed(2)} s
+								</dd>
+							</div>
+							<div>
+								<dt className="text-sm font-medium text-muted-foreground">
+									Classes Allocated
+								</dt>
+								<dd className="text-2xl font-bold">
+									{metrics.number_classes_allocated} /{" "}
+									{metrics.total_classes}
+								</dd>
+							</div>
+							<div>
+								<dt className="text-sm font-medium text-muted-foreground">
+									Percentage Classes Allocated
+								</dt>
+								<dd className="text-2xl font-bold">
+									{(
+										(metrics.number_classes_allocated /
+											metrics.total_classes) *
+										100
+									).toFixed(2)}{" "}
+									%
+								</dd>
+							</div>
+							<div>
+								<dt className="text-sm font-medium text-muted-foreground">
+									Average Grade Allocated
+								</dt>
+								<dd className="text-2xl font-bold">
+									{metrics.average_grade.toFixed(2)}
+								</dd>
+							</div>
 						</div>
-						<div>
-							<dt className="text-sm font-medium text-muted-foreground">
-								Processing Time
-							</dt>
-							<dd className="text-2xl font-bold">
-								{metrics.execution_time.toFixed(2)} s
-							</dd>
-						</div>
-						<div>
-							<dt className="text-sm font-medium text-muted-foreground">
-								Classes Allocated
-							</dt>
-							<dd className="text-2xl font-bold">
-								{metrics.number_classes_allocated} /{" "}
-								{metrics.total_classes}
-							</dd>
-						</div>
-						<div>
-							<dt className="text-sm font-medium text-muted-foreground">
-								Percentage Classes Allocated
-							</dt>
-							<dd className="text-2xl font-bold">
-								{(
-									(metrics.number_classes_allocated /
-										metrics.total_classes) *
-									100
-								).toFixed(2)}{" "}
-								%
-							</dd>
-						</div>
-						<div>
-							<dt className="text-sm font-medium text-muted-foreground">
-								Average Grade Allocated
-							</dt>
-							<dd className="text-2xl font-bold">
-								{metrics.average_grade.toFixed(2)}
-							</dd>
-						</div>
-					</dl>
+
+						{algorithmParameters && (
+							<>
+								<Separator className="my-4" />
+								<div>
+									<h4 className="text-sm font-medium text-muted-foreground mb-3">
+										Algorithm Parameters
+									</h4>
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<dt className="text-sm font-medium text-muted-foreground">
+												Minimum Grade Required
+											</dt>
+											<dd className="text-lg font-medium">
+												{algorithmParameters.minGrade.toFixed(
+													1
+												)}
+											</dd>
+										</div>
+										<div>
+											<dt className="text-sm font-medium text-muted-foreground">
+												Consider Preferences
+											</dt>
+											<dd className="text-lg font-medium">
+												{algorithmParameters.usePreference ===
+												1
+													? "Yes"
+													: "No"}
+											</dd>
+										</div>
+										{selectedAlgorithm === "genetic" && (
+											<>
+												<div>
+													<dt className="text-sm font-medium text-muted-foreground">
+														Number of Generations
+													</dt>
+													<dd className="text-lg font-medium">
+														{
+															algorithmParameters.generationNumber
+														}
+													</dd>
+												</div>
+												<div>
+													<dt className="text-sm font-medium text-muted-foreground">
+														Population Size
+													</dt>
+													<dd className="text-lg font-medium">
+														{
+															algorithmParameters.populationSize
+														}
+													</dd>
+												</div>
+											</>
+										)}
+									</div>
+								</div>
+							</>
+						)}
+					</div>
 				</CardContent>
 			</Card>
 

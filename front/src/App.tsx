@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { exit } from "@tauri-apps/plugin-process";
 import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
@@ -36,6 +36,7 @@ const App = () => {
 	const [minGrade, setMinGrade] = useState(7.0);
 	const [usePreference, setUsePreference] = useState(1);
 	const [selectedPreset, setSelectedPreset] = useState("balanced");
+	const [forcedStep, setForcedStep] = useState<number | undefined>(undefined);
 
 	const { toast } = useToast();
 
@@ -47,11 +48,18 @@ const App = () => {
 		setIsProcessing(false);
 		setCurrentCommand(null);
 		setStepperKey((prev) => prev + 1);
+		setForcedStep(0);
 
 		toast({
 			title: "Reset Complete",
 			description: "All data has been cleared. You can start over.",
 		});
+	};
+
+	const handleBackToAlgorithm = () => {
+		setForcedStep(2); // Go back to algorithm step
+		setAllocationResult(null);
+		setIsProcessing(false);
 	};
 
 	const handleExit = async () => {
@@ -353,17 +361,24 @@ const App = () => {
 				<ResultsStep
 					allocationResult={allocationResult}
 					selectedAlgorithm={selectedAlgorithm}
+					algorithmParameters={algorithmParameters}
 				/>
 			),
 			actions:
 				allocationResult && !isProcessing ? (
 					<div className="flex justify-between w-full">
+						<div className="flex">
 						<Button
 							variant="secondary"
 							onClick={handleStartOver}
 							className="mr-2">
 							Start Over
 						</Button>
+						<Button variant="secondary" onClick={handleBackToAlgorithm}>
+							<Settings className="mr-2 h-4 w-4" />
+							Change Algorithm
+						</Button>
+						</div>
 						<Button variant="destructive" onClick={handleExit}>
 							Exit
 						</Button>
@@ -379,7 +394,7 @@ const App = () => {
 			onStepComplete={validateStep}
 			onStepBack={handleStepBack}
 			isProcessing={isProcessing}
-			forceStep={allocationResult && !isProcessing ? 3 : undefined}
+			forceStep={allocationResult && !isProcessing ? 3 : forcedStep}
 			hideDefaultButtons={Boolean(allocationResult && !isProcessing)}
 		/>
 	);

@@ -23,7 +23,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const ALGORITHM_DESCRIPTIONS = {
-	integer_programming: "Uses integer programming to find the optimal allocation that maximizes overall preferences and grades. Guarantees the best possible solution but may take longer for large datasets.",
+	integer_programming:
+		"Uses integer programming to find the optimal allocation that maximizes overall preferences and grades. Guarantees the best possible solution but may take longer for large datasets.",
 	genetic:
 		"Uses genetic algorithms to evolve good solutions over multiple generations. Can quickly find good (but not necessarily optimal) solutions, especially useful for large datasets.",
 };
@@ -120,7 +121,30 @@ const AlgorithmStep = ({
 	};
 
 	const handleMinGradeChange = (value: string) => {
+		// Allow empty input for better UX while typing
+		if (value === "") {
+			onMinGradeChange(0);
+			if (selectedAlgorithm === "genetic") {
+				const preset = GENETIC_PRESETS[selectedPreset];
+				onParametersChange({
+					minGrade: 0,
+					usePreference,
+					generationNumber: preset.generations,
+					populationSize: preset.populationSize,
+				});
+			} else {
+				onParametersChange({
+					minGrade: 0,
+					usePreference,
+				});
+			}
+			return;
+		}
+
+		// Parse the input value
 		const grade = parseFloat(value);
+
+		// Only update if it's a valid number between 0 and 10
 		if (!isNaN(grade) && grade >= 0 && grade <= 10) {
 			onMinGradeChange(grade);
 			if (selectedAlgorithm === "genetic") {
@@ -182,7 +206,9 @@ const AlgorithmStep = ({
 											Integer Programming Algorithm
 										</h4>
 										<p className="text-sm">
-											{ALGORITHM_DESCRIPTIONS.integer_programming}
+											{
+												ALGORITHM_DESCRIPTIONS.integer_programming
+											}
 										</p>
 									</div>
 									<div>
@@ -242,7 +268,7 @@ const AlgorithmStep = ({
 									step="0.1"
 									min="0"
 									max="10"
-									value={minGrade}
+									value={minGrade || ""} // Show empty string when value is 0
 									onChange={(e) =>
 										handleMinGradeChange(e.target.value)
 									}
