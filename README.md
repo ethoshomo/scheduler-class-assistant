@@ -2,7 +2,7 @@
 
 ## Descrição
 
-O **Scheduler-ClassAssistant** é uma ferramenta robusta para criação e otimização de horários acadêmicos. Ele utiliza conceitos de programação matemática, como algoritmos genéticos e métodos lineares, para resolver problemas complexos de alocação de recursos e restrições. Este projeto foi projetado para facilitar o gerenciamento de horários, levando em conta critérios como:
+O **Scheduler-ClassAssistant** é uma ferramenta robusta para criação e otimização de horários acadêmicos. Ele utiliza conceitos de programação matemática, como algoritmos genéticos e métodos inteiros, para resolver problemas complexos de alocação de recursos e restrições. Este projeto foi projetado para facilitar o gerenciamento de horários, levando em conta critérios como:
 
 - Disponibilidade de professores.
 - Capacidade de salas.
@@ -40,10 +40,10 @@ Os algoritmos genéticos são inspirados pela seleção natural. Neste projeto, 
 4. **Evolução**:
    - Iterativamente, novas gerações de soluções são criadas até que um critério de parada seja alcançado (ex.: número de gerações ou aptidão satisfatória).
 
-### 2. **Métodos Lineares**
-Para situações em que soluções mais rígidas são necessárias, métodos lineares são utilizados para modelar e resolver o problema de forma determinística. 
+### 2. **Métodos Inteiros**
+Para situações em que soluções mais rígidas são necessárias, métodos inteiros são utilizados para modelar e resolver o problema de forma determinística. 
 
-#### Modelo Linear:
+#### Modelo Inteiro:
 
 ## Variáveis de Decisão:
 - \( x_{ad} \): Indica se o monitor \( a \) é alocado para a disciplina \( d \) (1 para alocado, 0 para não alocado).
@@ -83,56 +83,72 @@ Isso garante um equilíbrio entre maximizar o desempenho acadêmico e atender ao
 - \( s_{ad} \): Indica se o monitor \( a \) está disposto a monitorar a disciplina \( d \) (1 para disponível, 0 para indisponível).
 - \( N_a \): Nota média do monitor \( a \), utilizada como critério de priorização para alocação.
 
-
 ---
 
 ## Como Usar
 
-Pré-requisitos
-Backend:
+Um [executável para Windows](/builds/Scheduler%20Class%20Assistant_0.1.0_x64_en-US.msi) está disponível. Basta executar a instalação e rodar o programa normalmente. Os arquivos de entrada para teste também estão disponíveis:
+
+[Disciplinas](dataset/courses_data.xlsx)\
+[Alunos](dataset/students_data.xlsx)
+
+Durante a execução do programa, é possível baixar os templates que demonstram como os arquivos de entrada devem estar formatados. Também é possível inserir os dados manualmente.
+
+Após a inserção dos dados, basta selecionar o modelo, configurar os parâmetros (opcional) e rodar.
+
+As métricas da execução e uma tabela com os resultados serão exibidas. É possível fazer o download dos resultados em formato xlsx ou csv.
+
+---
+
+## Instruções para desenvolvimento
+
+Caso queira rodar o programa em um ambiente de desenvolvimento, siga os passos a seguir.
+
+### Pré-requisitos do ambiente de desenvolvimento
+#### Backend:
 
 Python 3.8 ou superior.
 
 Instale as dependências com:
 
 
-`pip install -r back/requirements.txt`
+```shell
+pip install -r back/requirements.txt
+```
 
-Frontend:
+#### Frontend:
 
 Node.js e PNPM.
 
 Instale as dependências com:
 
-`cd front
-pnpm install`
+```shell
+cd front
+pnpm install
+```
 
-Executando o Projeto
-Backend:
+### Para rodar em desenvolvimento
 
-Execute diretamente usando:
+Primeiro, gere os executáveis dos scripts Python:
 
+```shell
+cd back
+make
+```
 
-`python back/genetic.py`
+Depois, rode o projeto:
 
-Frontend:
+```shell
+cd front
+pnpm run dev
+```
 
-Para desenvolvimento:
+### Para buildar o projeto:
 
-
-`cd front
-pnpm run dev`
-
-Para construir o projeto:
-
-`pnpm run build`
-
-Docker:
-
-O projeto pode ser executado com Docker:
-
-`docker build -t scheduler-assistant .
-docker run -p 3000:3000 scheduler-assistant`
+```shell
+cd front
+pnpm tauri build
+```
 
 ---
 
@@ -150,7 +166,7 @@ docker run -p 3000:3000 scheduler-assistant`
 
 ## Benefícios do Modelo
 
-- **Flexibilidade**: Combina métodos heurísticos (algoritmos genéticos) com abordagens exatas (programação linear).
+- **Flexibilidade**: Combina métodos heurísticos (algoritmos genéticos) com abordagens exatas (programação inteira).
 - **Otimização Personalizada**: Adapta-se a diferentes critérios de priorização (ex.: minimizar tempos ociosos ou maximizar preferências).
 - **Escalabilidade**: Projetado para lidar com grandes volumes de dados (várias turmas, professores e horários).
 - **Eficiência Computacional**: Algoritmos otimizados para rápida convergência.

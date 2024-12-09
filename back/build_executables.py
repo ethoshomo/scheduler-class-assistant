@@ -89,10 +89,10 @@ def compile_genetic(target_dir: str):
     print(f"Created genetic algorithm executable: {target}")
 
 
-def compile_linear(target_dir: str):
-    """Compile the linear algorithm"""
-    print("Compiling linear algorithm...")
-    linear_source = os.path.join(os.path.dirname(__file__), "linear.py")
+def compile_integer_programming(target_dir: str):
+    """Compile the integer programming algorithm"""
+    print("Compiling integer programming algorithm...")
+    integer_programming_source = os.path.join(os.path.dirname(__file__), "integer_programming.py")
 
     # Find CBC solver
     try:
@@ -103,7 +103,7 @@ def compile_linear(target_dir: str):
         raise
 
     common_options = ["--onefile", "--clean"]
-    linear_options = [
+    integer_programming_options = [
         "--hidden-import=pulp",
         "--hidden-import=pulp.apis",
         "--hidden-import=pulp.apis.coin_api",
@@ -115,22 +115,22 @@ def compile_linear(target_dir: str):
         [
             "pyinstaller",
             *common_options,
-            *linear_options,
+            *integer_programming_options,
             "--name",
-            "linear",
-            linear_source,
+            "integer_programming",
+            integer_programming_source,
         ],
         check=True,
     )
 
     # Move the executables with platform-specific names
     if platform.system() == "Windows":
-        source = os.path.join(os.path.dirname(__file__), "dist", "linear.exe")
-        target_name = "linear-x86_64-pc-windows-msvc.exe"
+        source = os.path.join(os.path.dirname(__file__), "dist", "integer_programming.exe")
+        target_name = "integer_programming-x86_64-pc-windows-msvc.exe"
         cbc_target_name = "cbc-x86_64-pc-windows-msvc.exe"
     else:
-        source = os.path.join(os.path.dirname(__file__), "dist", "linear")
-        target_name = "linear-x86_64-unknown-linux-gnu"
+        source = os.path.join(os.path.dirname(__file__), "dist", "integer_programming")
+        target_name = "integer_programming-x86_64-unknown-linux-gnu"
         cbc_target_name = "cbc-x86_64-unknown-linux-gnu"
 
     target = os.path.join(target_dir, target_name)
@@ -145,7 +145,7 @@ def compile_linear(target_dir: str):
         os.chmod(cbc_target, 0o755)
         os.chmod(target, 0o755)
 
-    print(f"Created linear algorithm executable: {target}")
+    print(f"Created integer programming algorithm executable: {target}")
     print(f"Copied CBC solver to: {cbc_target}")
 
 
@@ -155,7 +155,7 @@ def cleanup():
     build_dir = os.path.join(os.path.dirname(__file__), "build")
     dist_dir = os.path.join(os.path.dirname(__file__), "dist")
 
-    for spec_file in ["genetic.spec", "linear.spec"]:
+    for spec_file in ["genetic.spec", "integer_programming.spec"]:
         spec_path = os.path.join(os.path.dirname(__file__), spec_file)
         if os.path.exists(spec_path):
             os.remove(spec_path)
@@ -177,13 +177,13 @@ def main():
         "--genetic", action="store_true", help="Build only the genetic algorithm"
     )
     parser.add_argument(
-        "--linear", action="store_true", help="Build only the linear algorithm"
+        "--integer_programming", action="store_true", help="Build only the integer_programming algorithm"
     )
     args = parser.parse_args()
 
     try:
         # If no specific algorithm is selected, build both
-        build_both = not (args.genetic or args.linear)
+        build_both = not (args.genetic or args.integer_programming)
 
         print("Creating directories...")
         target_dir = create_directories()
@@ -195,8 +195,8 @@ def main():
         if args.genetic or build_both:
             compile_genetic(target_dir)
 
-        if args.linear or build_both:
-            compile_linear(target_dir)
+        if args.integer_programming or build_both:
+            compile_integer_programming(target_dir)
 
         cleanup()
         print("Build completed successfully!")

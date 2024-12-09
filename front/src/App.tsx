@@ -1,17 +1,22 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
-import Stepper, { StepStatus } from "./components/widgets/stepper";
-import CourseInput, { CourseData } from "./components/course-input";
-import StudentInput, { StudentData } from "./components/student-input";
-import { useToast } from "@/hooks/use-toast";
-import { invoke } from "@tauri-apps/api/core";
+import { Loader2, Settings } from "lucide-react";
 import { exit } from "@tauri-apps/plugin-process";
 import { writeFile, BaseDirectory, mkdir } from "@tauri-apps/plugin-fs";
 import { appConfigDir, join } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import * as XLSX from "xlsx";
-import { Button } from "./components/ui/button";
-import ResultsStep, { AllocationResult } from "./components/steps/results-step";
-import AlgorithmStep, { GENETIC_PRESETS } from "./components/steps/algorithm-step";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import Stepper, { StepStatus } from "./components/widgets/Stepper";
+
+import CourseInputStep, {
+	CourseData,
+} from "./components/steps/CourseInputStep";
+import StudentInputStep, {
+	StudentData,
+} from "./components/steps/StudentInputStep";
+import AlgorithmStep from "./components/steps/AlgorithmStep";
+import ResultsStep, { AllocationResult } from "./components/steps/ResultsStep";
 
 const App = () => {
 	const [currentCommand, setCurrentCommand] = useState<string | null>(null);
@@ -31,24 +36,30 @@ const App = () => {
 	const [minGrade, setMinGrade] = useState(7.0);
 	const [usePreference, setUsePreference] = useState(1);
 	const [selectedPreset, setSelectedPreset] = useState("balanced");
+	const [forcedStep, setForcedStep] = useState<number | undefined>(undefined);
 
 	const { toast } = useToast();
 
 	const handleStartOver = () => {
-		// Clear all data
 		setCourseData([]);
 		setStudentData([]);
 		setSelectedAlgorithm("");
 		setAllocationResult(null);
 		setIsProcessing(false);
 		setCurrentCommand(null);
-		// Increment the key to force a complete Stepper reset
 		setStepperKey((prev) => prev + 1);
+		setForcedStep(0);
 
 		toast({
 			title: "Reset Complete",
 			description: "All data has been cleared. You can start over.",
 		});
+	};
+
+	const handleBackToAlgorithm = () => {
+		setForcedStep(2); // Go back to algorithm step
+		setAllocationResult(null);
+		setIsProcessing(false);
 	};
 
 	const handleExit = async () => {
@@ -144,7 +155,7 @@ const App = () => {
 			const tutorsDataFilePath = await join(configDir, studentFilename);
 			const coursesDataFilePath = await join(configDir, courseFilename);
 
-			const result = await invoke("run_algorithm", {
+			const params = {
 				algorithm: selectedAlgorithm,
 				tutorsDataFilePath,
 				coursesDataFilePath,
@@ -153,13 +164,19 @@ const App = () => {
 				preferenceFlag: algorithmParameters.usePreference,
 				generationNumber: algorithmParameters.generationNumber,
 				populationSize: algorithmParameters.populationSize,
-			});
+			};
+
+			// console.log(params);
+
+			const result = await invoke("run_algorithm", params);
+
+			// console.log(result);
 
 			if (typeof result === "object" && result !== null) {
 				const typedResult = result as { data?: AllocationResult };
 				if (typedResult.data) {
-					setIsProcessing(false); // First, stop processing
-					setAllocationResult(typedResult.data); // Then set the result
+					setIsProcessing(false);
+					setAllocationResult(typedResult.data);
 					toast({
 						title: "Success",
 						description: "Allocation completed successfully!",
@@ -184,7 +201,6 @@ const App = () => {
 			}
 			return false;
 		} finally {
-			// Only cleanup if this is still the current command
 			if (commandId === currentCommand) {
 				setIsProcessing(false);
 				setCurrentCommand(null);
@@ -194,7 +210,6 @@ const App = () => {
 
 	const handleCancel = () => {
 		if (isProcessing && currentCommand) {
-			// Send cancellation command to Rust backend
 			invoke("cancel_algorithm", { commandId: currentCommand }).catch(
 				console.error
 			);
@@ -210,53 +225,9 @@ const App = () => {
 				description: "The allocation process was cancelled.",
 			});
 
-			return true; // Allow return to algorithm selection
+			return true;
 		}
 		return false;
-	};
-
-	const AlgorithmSelectionStep = () => {
-		const handleAlgorithmChange = (algorithm: string) => {
-			setSelectedAlgorithm(algorithm);
-			if (algorithm === "genetic") {
-				const preset = GENETIC_PRESETS[selectedPreset];
-				setAlgorithmParameters({
-					minGrade,
-					usePreference,
-					generationNumber: preset.generations,
-					populationSize: preset.populationSize,
-				});
-			} else {
-				setAlgorithmParameters({
-					minGrade,
-					usePreference,
-				});
-			}
-		};
-
-		const handleParametersChange = (params: {
-			minGrade: number;
-			usePreference: number;
-			generationNumber?: number;
-			populationSize?: number;
-		}) => {
-			setAlgorithmParameters(params);
-		};
-
-		return (
-			<AlgorithmStep
-				selectedAlgorithm={selectedAlgorithm}
-				onAlgorithmChange={handleAlgorithmChange}
-				onParametersChange={handleParametersChange}
-				disabled={isProcessing}
-				minGrade={minGrade}
-				onMinGradeChange={setMinGrade}
-				usePreference={usePreference}
-				onUsePreferenceChange={setUsePreference}
-				selectedPreset={selectedPreset}
-				onPresetChange={setSelectedPreset}
-			/>
-		);
 	};
 
 	const ProcessingStep = () => (
@@ -268,8 +239,8 @@ const App = () => {
 			</p>
 			<p className="text-sm text-muted-foreground">
 				Using{" "}
-				{selectedAlgorithm === "linear"
-					? "Linear Programming"
+				{selectedAlgorithm === "integer_programming"
+					? "Integer Programming"
 					: "Genetic"}{" "}
 				Algorithm
 			</p>
@@ -325,12 +296,10 @@ const App = () => {
 					});
 					return false;
 				}
-				// Start processing
 				processDataWithBackend();
 				return true;
 
 			case 3:
-				// Don't allow manual advancement during processing
 				return !isProcessing;
 
 			default:
@@ -346,7 +315,7 @@ const App = () => {
 			description: "Enter the courses and their number of classes",
 			content: (
 				<div className="space-y-4">
-					<CourseInput onDataChange={handleCourseDataChange} />
+					<CourseInputStep onDataChange={handleCourseDataChange} />
 				</div>
 			),
 		},
@@ -355,7 +324,7 @@ const App = () => {
 			description: "Enter tutors details and preference values",
 			content: (
 				<div className="space-y-4">
-					<StudentInput
+					<StudentInputStep
 						courses={courseData}
 						data={studentData}
 						onDataChange={setStudentData}
@@ -366,7 +335,20 @@ const App = () => {
 		{
 			title: "Algorithm Selection",
 			description: "Choose the allocation algorithm",
-			content: <AlgorithmSelectionStep />,
+			content: (
+				<AlgorithmStep
+					selectedAlgorithm={selectedAlgorithm}
+					onAlgorithmChange={setSelectedAlgorithm}
+					onParametersChange={setAlgorithmParameters}
+					disabled={isProcessing}
+					minGrade={minGrade}
+					onMinGradeChange={setMinGrade}
+					usePreference={usePreference}
+					onUsePreferenceChange={setUsePreference}
+					selectedPreset={selectedPreset}
+					onPresetChange={setSelectedPreset}
+				/>
+			),
 		},
 		{
 			title: isProcessing ? "Processing" : "Results",
@@ -379,17 +361,24 @@ const App = () => {
 				<ResultsStep
 					allocationResult={allocationResult}
 					selectedAlgorithm={selectedAlgorithm}
+					algorithmParameters={algorithmParameters}
 				/>
 			),
 			actions:
 				allocationResult && !isProcessing ? (
 					<div className="flex justify-between w-full">
+						<div className="flex">
 						<Button
 							variant="secondary"
 							onClick={handleStartOver}
 							className="mr-2">
 							Start Over
 						</Button>
+						<Button variant="secondary" onClick={handleBackToAlgorithm}>
+							<Settings className="mr-2 h-4 w-4" />
+							Change Algorithm
+						</Button>
+						</div>
 						<Button variant="destructive" onClick={handleExit}>
 							Exit
 						</Button>
@@ -405,7 +394,7 @@ const App = () => {
 			onStepComplete={validateStep}
 			onStepBack={handleStepBack}
 			isProcessing={isProcessing}
-			forceStep={allocationResult && !isProcessing ? 3 : undefined}
+			forceStep={allocationResult && !isProcessing ? 3 : forcedStep}
 			hideDefaultButtons={Boolean(allocationResult && !isProcessing)}
 		/>
 	);
