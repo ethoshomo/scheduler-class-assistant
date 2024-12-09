@@ -18,6 +18,7 @@ export function downloadTemplate(
     XLSX.utils.book_append_sheet(wb, ws, "Template");
 
     if (format === "csv") {
+        // Use XLSX's built-in CSV conversion which handles encoding better
         XLSX.writeFile(wb, `${filename}.csv`, { bookType: "csv" });
     } else {
         XLSX.writeFile(wb, `${filename}.xlsx`);
@@ -32,26 +33,41 @@ export async function processFile<T>(
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
 
-        reader.onload = (event: ProgressEvent<FileReader>) => {
+        reader.onload = async (event: ProgressEvent<FileReader>) => {
             try {
                 let headers: string[];
                 let parsedRows: any[];
 
                 if (file.name.endsWith(".csv")) {
-                    const text = event.target?.result as string;
-                    const rows = text.split("\n");
-                    headers = rows[0].split(",").map((header) => header.trim());
+                    // Try to handle the file as a binary Excel-compatible CSV
+                    try {
+                        const arrayBuffer = event.target?.result as ArrayBuffer;
+                        const data = new Uint8Array(arrayBuffer);
+                        const workbook = XLSX.read(data, { type: "array" });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        parsedRows = XLSX.utils.sheet_to_json(sheet);
+                        headers = Object.keys(parsedRows[0] || {});
+                    } catch (error) {
+                        // If XLSX parsing fails, fall back to text parsing with Windows-1252 encoding
+                        const text = event.target?.result as string;
+                        const decoder = new TextDecoder('windows-1252');
+                        const decodedText = decoder.decode(new Uint8Array(text as unknown as ArrayBuffer));
 
-                    parsedRows = rows
-                        .slice(1)
-                        .filter((row) => row.trim())
-                        .map((row) => {
-                            const values = row.split(",").map((value) => value.trim());
-                            return headers.reduce((obj, header, index) => {
-                                obj[header] = values[index];
-                                return obj;
-                            }, {} as Record<string, string>);
-                        });
+                        const rows = decodedText.split(/\r?\n/);
+                        headers = rows[0].split(",").map((header) => header.trim());
+
+                        parsedRows = rows
+                            .slice(1)
+                            .filter((row) => row.trim())
+                            .map((row) => {
+                                const values = row.split(",").map((value) => value.trim());
+                                return headers.reduce((obj, header, index) => {
+                                    obj[header] = values[index];
+                                    return obj;
+                                }, {} as Record<string, string>);
+                            });
+                    }
                 } else {
                     const arrayBuffer = event.target?.result as ArrayBuffer;
                     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -92,8 +108,9 @@ export async function processFile<T>(
             }
         };
 
+        // Read CSV files as ArrayBuffer instead of text
         if (file.name.endsWith(".csv")) {
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
         } else {
             reader.readAsArrayBuffer(file);
         }
