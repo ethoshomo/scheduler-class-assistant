@@ -87,7 +87,7 @@ Isso garante um equilíbrio entre maximizar o desempenho acadêmico e atender ao
 
 ## Como Usar
 
-Um [executável para Windows](colocaraquidepois) está disponível. Basta executar a instalação e rodar o programa normalmente. Os arquivos de entrada para teste também estão disponíveis:
+Um [executável para Windows](/builds/Scheduler%20Class%20Assistant_0.1.0_x64_en-US.msi) está disponível. Basta executar a instalação e rodar o programa normalmente. Os arquivos de entrada para teste também estão disponíveis:
 
 [Disciplinas](dataset/courses_data.xlsx)\
 [Alunos](dataset/students_data.xlsx)
@@ -147,7 +147,7 @@ pnpm run dev
 
 ```shell
 cd front
-pnpm run build
+pnpm tauri build
 ```
 
 ---
